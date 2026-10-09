@@ -69,11 +69,49 @@ project needs:
   on the Nix store's read-only filesystem.
 - JDK 25 (`pkgs.jdk25`), matching `compileOptions`/`java.toolchain` in `app/build.gradle.kts`
   (language level 25).
-- No emulator/device images (`android.emulator.enable = false`, etc.) — this devenv only needs to
-  compile and run unit tests, not launch an emulator.
+- An x86_64-only emulator and system images (`android.abis = [ "x86_64" ]`, `android.emulator.enable`,
+  `android.systemImages.enable`) so a build can be run and checked without a device; API 36 and
+  API 37.0 `google_apis_playstore` images are provided. arm64 images are left out (slow, several GB).
 
 Run builds through `devenv shell -- ./gradlew ...` (or inside `devenv shell`) rather than a bare
 system Gradle, so the pinned SDK/JDK are on `PATH`.
+
+## Running on the emulator
+
+Create the AVD outside the repo and boot it headless (needs `/dev/kvm`):
+
+```bash
+export ANDROID_AVD_HOME=/path/outside/repo/avd ANDROID_USER_HOME=/path/outside/repo/androiduser
+devenv shell -- bash -c 'avdmanager create avd -n lissen36 -k "system-images;android-36;google_apis_playstore;x86_64" -d pixel_6'
+devenv shell -- emulator -avd lissen36 -no-window -no-audio -no-snapshot -gpu swangle_indirect -cores 4 -memory 3072
+adb install -r app/build/outputs/apk/dev/app-dev.apk   # installs as org.grakovne.lissen.dev
+adb shell am start -n org.grakovne.lissen.dev/org.grakovne.lissen.ui.activity.AppActivity
+```
+
+- **Use the API 36 image, not 37.0.** On the 37.0 preview image `surfaceflinger` aborts
+  (`Assertion failed: !rcEnc->featureInfo()->hasReadColorBufferDma`) in every `-gpu` mode, which
+  restarts the guest's system server over and over; `screencap` hits the same assertion. API 36 is
+  stable. Consequence: the API-37-only local-network prompt can't be exercised here.
+- Wait for `adb shell pm path android` to succeed, not just `sys.boot_completed`: system services
+  start later, and `adb install` fails with "Can't find service: package" until then.
+- `-PsingleAbi=true` keeps arm64-v8a by default; the x86_64 image also runs arm64 (translated), or
+  pass `-PtargetAbi=x86_64` for a native build.
+- The guest restarts if the host is starved (other Gradle/Kotlin daemons); check `uptime`/`free`.
+- No Audiobookshelf server is needed to see the wizard, login, and Preferences (reachable from
+  the login screen's gear): enough to check the settings slices. Playback needs a server.
+- `adb exec-out screencap -p > shot.png` for screenshots; `uiautomator dump` for UI text.
+
+## When to build (hard rule)
+
+**Only run a Gradle build/test when the user explicitly asks for one.** Don't build "to verify" an
+edit, and don't leave anything running afterwards. The machine is memory-constrained (14 GiB RAM,
+swap routinely near full); a lingering Gradle + Kotlin daemon pair cost ~5.6 GB of swap.
+
+- `gradle.properties` sets `org.gradle.daemon=false` and `kotlin.compiler.execution.strategy=in-process`,
+  so each build is a single JVM that exits when done. Slower cold start is an accepted trade-off.
+  Don't re-enable the daemon or pass `--daemon`.
+- After any build, confirm nothing survived: `pgrep -fa 'gradle|kotlin-build-tools'` should be empty;
+  if not, `devenv shell -- ./gradlew --stop`, then `pkill -f 'GradleDaemon|kotlin-build-tools'`.
 
 ## How to run things (pitfalls already hit)
 
