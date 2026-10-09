@@ -21,6 +21,9 @@ import org.grakovne.lissen.domain.DetailedItem
 import org.grakovne.lissen.domain.DetailedItem.Companion.same
 import org.grakovne.lissen.domain.DurationTimerOption
 import org.grakovne.lissen.domain.LibraryType
+import org.grakovne.lissen.domain.RearmExtensionMode
+import org.grakovne.lissen.domain.ResumeRewindLongMode
+import org.grakovne.lissen.domain.SleepTimerSettings
 import org.grakovne.lissen.domain.TimerOption
 import org.grakovne.lissen.persistence.preferences.PlaybackPreferences
 import org.grakovne.lissen.playback.autoskip.AutoSkipPreferences
@@ -44,6 +47,7 @@ class MediaRepository
     private val player: PlayerConnection,
     private val mainThread: MainThread,
     private val steps: PlaybackSteps,
+    private val carConnectionMonitor: CarConnectionMonitor,
   ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -96,6 +100,29 @@ class MediaRepository
     @Volatile
     private var queueBuildingItemId: String? = null
 
+    // set by a chapter-skip re-arm; consumed by the next auto-transition's onPositionDiscontinuity
+    private var pendingChapterSkip = false
+
+    // set when the sleep timer pauses playback, which also applies the short rewind at once; the long
+    // rewind tops it up once the pause outlasts the threshold - by [longRewindRunnable] if the app is
+    // still alive then, otherwise by the next resume
+    private var pendingLongRewind: PendingLongRewind? = null
+    private val longRewindRunnable = Runnable { applyLongRewind() }
+
+    // a rearm's effects (new SetTimer command, or a deferred chapter-boundary timer) can lag
+    // behind _timerRemaining actually reflecting them; a second trigger arriving right after a
+    // rearm must not read the still-stale remaining value as "still within the fade window" and
+    // rearm again, swallowing what was meant as a real pause - see rearmTimer()
+    private var lastRearmAtMillis = 0L
+
+    // set when playback pauses; a resume within REARM_DEBOUNCE_MILLIS of it is a quick pause/resume
+    // (a re-arm), a longer one is a real pause that PlaybackTimer resets the timer for
+    private var pausedAtMillis = 0L
+
+    // overridden in tests to control how "quick" vs "long-delay" a resume is judged to be
+    @VisibleForTesting
+    internal var elapsedTimeMillis: () -> Long = System::currentTimeMillis
+
     private val progressPoller =
       ProgressPoller(
         intervalMs = PROGRESS_UPDATE_INTERVAL_MS,
@@ -112,12 +139,18 @@ class MediaRepository
           when (isPlaying) {
             true -> {
               progressPoller.start()
+              if (pausedAtMillis > 0L && elapsedTimeMillis() - pausedAtMillis < REARM_DEBOUNCE_MILLIS) {
+                rearmTimer(RearmTrigger.PAUSE_RESUME)
+              }
+              pausedAtMillis = 0L
+              resolveLongRewindOnResume()
               defaultTimerActivator.onPlaybackStarted { updateTimer(it) }
             }
 
             false -> {
               progressPoller.stop()
               updateProgressWhenReady()
+              pausedAtMillis = elapsedTimeMillis()
             }
           }
         }
@@ -127,8 +160,19 @@ class MediaRepository
 
           updateProgressWhenReady()
           // a seek moves the end of the episode, and the auto-skip end with it; running into the
-          // next chapter is the end the timer counts to, and the timer handles that itself
-          if (byPlayback.not()) adjustTimer(totalPosition.value)
+          // next chapter is normally the end the timer counts to, and the timer handles that
+          // itself - unless a chapter-skip re-arm asked to let this one boundary pass, in which
+          // case the timer needs a fresh delay for the chapter just entered.
+          when {
+            byPlayback.not() -> {
+              adjustTimer(totalPosition.value)
+            }
+
+            pendingChapterSkip -> {
+              pendingChapterSkip = false
+              adjustTimer(totalPosition.value)
+            }
+          }
         }
 
         override fun onEnded() {
@@ -151,6 +195,10 @@ class MediaRepository
       player.connect(playerListener) {
         scope.launch { eventBus.events.collect(::onPlaybackEvent) }
       }
+
+      // a timer already running when the car connects mid-session must stop too, not just be
+      // refused for future attempts
+      scope.launch { carConnectionMonitor.isConnected.collect { connected -> if (connected) updateTimer(null) } }
     }
 
     private fun onPlaybackEvent(event: PlaybackEvent) {
@@ -161,8 +209,10 @@ class MediaRepository
 
         is PlaybackEvent.TimerExpired -> {
           defaultTimerActivator.onTimerExpired()
+          val option = _timerOption.value
           _timerOption.value = null
           pause()
+          startTimerPauseRewind(option)
         }
 
         // emitted by PlaybackTimer on any stop: manual cancel, replacement, or expiry.
@@ -173,6 +223,12 @@ class MediaRepository
         is PlaybackEvent.TimerTick -> {
           _timerRemaining.value = event.remainingSeconds
         }
+
+        // chime playback lives in SleepTimerFadeService/SleepTimerChimePlayer; nothing to
+        // reconcile here.
+        is PlaybackEvent.TimerFadeStarted -> {}
+
+        is PlaybackEvent.TimerRearmed -> {}
       }
     }
 
@@ -199,16 +255,19 @@ class MediaRepository
       if (shouldPlay) play()
     }
 
+    /** The sleep timer is for falling asleep, not for driving - disabled outright while a car is connected. */
     fun updateTimer(
       timerOption: TimerOption?,
       position: Double? = null,
     ) {
-      defaultTimerActivator.onTimerManuallySet()
-      _timerOption.value = timerOption
+      val option = if (carConnectionMonitor.isConnected.value) null else timerOption
 
-      when (timerOption) {
+      defaultTimerActivator.onTimerManuallySet()
+      _timerOption.value = option
+
+      when (option) {
         is DurationTimerOption -> {
-          scheduleServiceTimer(timerOption.duration * 60.0, timerOption)
+          scheduleServiceTimer(option.duration * 60.0, option)
         }
 
         is CurrentEpisodeTimerOption -> {
@@ -221,7 +280,7 @@ class MediaRepository
               autoSkip = autoSkipPreferences.get(book.id),
             ) ?: return
 
-          scheduleServiceTimer(delay, timerOption)
+          scheduleServiceTimer(delay, option)
         }
 
         null -> {
@@ -253,6 +312,7 @@ class MediaRepository
       Timber.d("Clearing playing book: $bookId")
 
       clearPreparedItem()
+      clearLongRewind()
       progressPoller.stop()
       player.clear()
 
@@ -416,6 +476,9 @@ class MediaRepository
       playWhenReady = false
       _isPlaybackReady.value = false
       queueRebuildInFlight = false
+      pendingChapterSkip = false
+      // the pending long rewind survives: resuming the book the timer paused re-prepares it
+      // first, and applyLongRewind drops it if a different book is playing
     }
 
     fun registerPlayingBook(book: DetailedItem) {
@@ -568,6 +631,128 @@ class MediaRepository
 
     fun refreshTimer() = adjustTimer(totalPosition.value)
 
+    /**
+     * Re-arms the running sleep timer from a headphone-button press or a phone shake. Both are
+     * only meaningful during the fade-out window - the same window [SleepTimerFadeService]
+     * computes from [org.grakovne.lissen.domain.SleepTimerSettings.isWithinFadeWindow]. Returns
+     * whether it actually re-armed, so a headphone button press can fall back to its normal
+     * play/pause behavior when it didn't. Debounced by [REARM_DEBOUNCE_MILLIS] so a second press
+     * shortly after a successful rearm - meant as a real pause - isn't read as another rearm.
+     */
+    fun rearmTimer(trigger: RearmTrigger): Boolean {
+      val option = _timerOption.value ?: return false
+      val settings = preferences.getSleepTimerSettings()
+
+      if (!settings.rearmEnabled) return false
+      if (trigger == RearmTrigger.HEADPHONE_BUTTON && !settings.rearmViaHeadphoneButton) return false
+      if (trigger == RearmTrigger.SHAKE && !settings.rearmViaShake) return false
+
+      val now = elapsedTimeMillis()
+      if (now - lastRearmAtMillis < REARM_DEBOUNCE_MILLIS) return false
+
+      val remaining = _timerRemaining.value ?: return false
+      if (!settings.isWithinFadeWindow(remaining)) return false
+
+      lastRearmAtMillis = now
+
+      when (option) {
+        is DurationTimerOption -> {
+          val newDelay = (remaining + extensionSecondsFor(option, settings)).toDouble()
+          scheduleServiceTimer(newDelay, option)
+        }
+
+        CurrentEpisodeTimerOption -> {
+          pendingChapterSkip = true
+          eventBus.send(PlaybackCommand.SuppressNextChapterStop)
+        }
+      }
+
+      eventBus.emit(PlaybackEvent.TimerRearmed)
+      return true
+    }
+
+    private class PendingLongRewind(
+      val bookId: String?,
+      val option: TimerOption?,
+      val pausedAtMillis: Long,
+      val rewoundSeconds: Int,
+    )
+
+    /** Rewinds by the short amount right at a timer pause, so the saved position is already the rewound one. */
+    private fun startTimerPauseRewind(option: TimerOption?) {
+      clearLongRewind()
+
+      val settings = preferences.getSleepTimerSettings()
+      // rewind-on-pause has moved the playhead already, unless the pause ends an episode
+      // ponytail: assumes it seeked the full amount; it stops at a chapter start or an auto-skip edge
+      val rewindOnPause = preferences.getRewindOnPause()
+      val alreadySeconds = if (rewindOnPause.enabled && option !is CurrentEpisodeTimerOption) rewindOnPause.seconds else 0
+
+      rewindBySeconds(settings.resumeRewindShortSeconds - alreadySeconds)
+
+      pendingLongRewind =
+        PendingLongRewind(
+          bookId = _playingBook.value?.id,
+          option = option,
+          pausedAtMillis = elapsedTimeMillis(),
+          rewoundSeconds = maxOf(settings.resumeRewindShortSeconds, alreadySeconds),
+        )
+      mainThread.postDelayed(longRewindRunnable, settings.resumeRewindThresholdSeconds * 1000L)
+    }
+
+    private fun resolveLongRewindOnResume() {
+      val pending = pendingLongRewind ?: return
+      val thresholdMillis = preferences.getSleepTimerSettings().resumeRewindThresholdSeconds * 1000L
+
+      if (elapsedTimeMillis() - pending.pausedAtMillis >= thresholdMillis) applyLongRewind() else clearLongRewind()
+    }
+
+    private fun clearLongRewind() {
+      pendingLongRewind = null
+      mainThread.cancel(longRewindRunnable)
+    }
+
+    private fun applyLongRewind() {
+      val pending = pendingLongRewind ?: return
+      clearLongRewind()
+      if (pending.bookId != _playingBook.value?.id) return
+
+      val settings = preferences.getSleepTimerSettings()
+      val option = pending.option
+
+      val longSeconds =
+        when (settings.resumeRewindLongMode) {
+          ResumeRewindLongMode.FIXED -> {
+            settings.resumeRewindLongSeconds
+          }
+
+          ResumeRewindLongMode.MATCH_EXTENSION -> {
+            option?.let { extensionSecondsFor(it, settings) } ?: settings.resumeRewindLongSeconds
+          }
+
+          ResumeRewindLongMode.MATCH_TIMER_DURATION -> {
+            when (option) {
+              is DurationTimerOption -> option.duration * 60
+              CurrentEpisodeTimerOption -> return rewindToChapterStart()
+              null -> settings.resumeRewindLongSeconds
+            }
+          }
+        }
+
+      rewindBySeconds(longSeconds - pending.rewoundSeconds)
+    }
+
+    private fun rewindBySeconds(seconds: Int) {
+      if (seconds > 0) seekTo(totalPosition.value - seconds)
+    }
+
+    /** Rewinds to the start of whichever chapter [totalPosition] currently falls in. */
+    private fun rewindToChapterStart() {
+      val book = playingBook.value ?: return
+      val progress = PlaybackGeometry.chapterProgress(book, totalPosition.value)
+      if (progress.position > 0) seekTo(totalPosition.value - progress.position)
+    }
+
     private fun adjustTimer(position: Double) {
       when (val option = _timerOption.value) {
         is CurrentEpisodeTimerOption -> {
@@ -580,7 +765,32 @@ class MediaRepository
 
     private companion object {
       private const val PROGRESS_UPDATE_INTERVAL_MS = 500L
+      private const val REARM_DEBOUNCE_MILLIS = 2_000L
 
       private fun getSeekTime(seconds: Int?): Long = seconds?.toLong() ?: 30L
+    }
+  }
+
+enum class RearmTrigger {
+  HEADPHONE_BUTTON,
+  SHAKE,
+  PAUSE_RESUME,
+}
+
+/** How many seconds a re-arm currently extends a running duration timer by. */
+internal fun extensionSecondsFor(
+  option: TimerOption,
+  settings: SleepTimerSettings,
+): Int =
+  when (settings.rearmExtensionMode) {
+    RearmExtensionMode.FIXED -> {
+      settings.rearmExtensionSeconds
+    }
+
+    RearmExtensionMode.MATCH_TIMER_DURATION -> {
+      when (option) {
+        is DurationTimerOption -> option.duration * 60
+        CurrentEpisodeTimerOption -> settings.rearmExtensionSeconds
+      }
     }
   }

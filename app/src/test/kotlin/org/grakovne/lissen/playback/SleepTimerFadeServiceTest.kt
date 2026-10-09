@@ -7,6 +7,7 @@ import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.slot
+import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -30,6 +31,7 @@ import org.junit.jupiter.api.Test
 class SleepTimerFadeServiceTest {
   private val player = mockk<ExoPlayer>(relaxed = true)
   private val preferences = mockk<PlaybackPreferences>(relaxed = true)
+  private val chimePlayer = mockk<SleepTimerChimePlayer>(relaxed = true)
   private val playerListener = slot<Player.Listener>()
   private var playerVolume = 1f
   private var isPlaying = true
@@ -198,6 +200,56 @@ class SleepTimerFadeServiceTest {
     }
 
   @Test
+  fun `fade start plays the fade chime at the configured volume when enabled`() =
+    fadeTest(fadeSeconds = 30, chimeOnFadeStart = true) { bus ->
+      bus.emit(PlaybackEvent.TimerTick(30L))
+      advanceUntilIdle()
+
+      verify(exactly = 1) { chimePlayer.playFadeStart(0.5f) }
+      verify(exactly = 0) { chimePlayer.playRearm(any()) }
+    }
+
+  @Test
+  fun `fade start does not play the chime when disabled`() =
+    fadeTest(fadeSeconds = 30, chimeOnFadeStart = false) { bus ->
+      bus.emit(PlaybackEvent.TimerTick(30L))
+      advanceUntilIdle()
+
+      verify(exactly = 0) { chimePlayer.playFadeStart(any()) }
+    }
+
+  @Test
+  fun `re-arm plays the rearm chime at the configured volume, not the fade chime`() =
+    fadeTest(fadeSeconds = 30) { bus ->
+      bus.emit(PlaybackEvent.TimerRearmed)
+      advanceUntilIdle()
+
+      verify(exactly = 1) { chimePlayer.playRearm(0.5f) }
+      verify(exactly = 0) { chimePlayer.playFadeStart(any()) }
+    }
+
+  @Test
+  fun `re-arm does not play the chime when disabled`() =
+    fadeTest(fadeSeconds = 30, chimeOnRearm = false) { bus ->
+      bus.emit(PlaybackEvent.TimerRearmed)
+      advanceUntilIdle()
+
+      verify(exactly = 0) { chimePlayer.playRearm(any()) }
+    }
+
+  @Test
+  fun `each chime's volume is converted from its own 0 to 100 setting`() =
+    fadeTest(fadeSeconds = 30, chimeFadeVolume = 80, chimeRearmVolume = 20) { bus ->
+      bus.emit(PlaybackEvent.TimerTick(30L))
+      advanceUntilIdle()
+      verify(exactly = 1) { chimePlayer.playFadeStart(0.8f) }
+
+      bus.emit(PlaybackEvent.TimerRearmed)
+      advanceUntilIdle()
+      verify(exactly = 1) { chimePlayer.playRearm(0.2f) }
+    }
+
+  @Test
   fun `expiry without a fade keeps the volume as is and schedules no restore`() =
     fadeTest(fadeSeconds = 30) { bus ->
       bus.emit(PlaybackEvent.TimerTick(100L))
@@ -229,6 +281,10 @@ class SleepTimerFadeServiceTest {
   private fun fadeTest(
     fadeSeconds: Int,
     enabled: Boolean = true,
+    chimeOnFadeStart: Boolean = true,
+    chimeOnRearm: Boolean = true,
+    chimeFadeVolume: Int = SleepTimerSettings.DEFAULT_CHIME_VOLUME,
+    chimeRearmVolume: Int = SleepTimerSettings.DEFAULT_CHIME_VOLUME,
     test: suspend TestScope.(PlaybackEventBus) -> Unit,
   ) = runTest {
     Dispatchers.setMain(StandardTestDispatcher(testScheduler))
@@ -236,10 +292,18 @@ class SleepTimerFadeServiceTest {
     playerVolume = 1f
     isPlaying = true
 
-    every { preferences.getSleepTimerSettings() } returns SleepTimerSettings(fadeEnabled = enabled, fadeSeconds = fadeSeconds)
+    every { preferences.getSleepTimerSettings() } returns
+      SleepTimerSettings(
+        fadeEnabled = enabled,
+        fadeSeconds = fadeSeconds,
+        chimeOnFadeStart = chimeOnFadeStart,
+        chimeOnRearm = chimeOnRearm,
+        chimeFadeVolume = chimeFadeVolume,
+        chimeRearmVolume = chimeRearmVolume,
+      )
 
     val bus = PlaybackEventBus()
-    SleepTimerFadeService(player, bus, preferences).onCreate()
+    SleepTimerFadeService(player, bus, preferences, chimePlayer).onCreate()
     advanceUntilIdle()
 
     test(bus)

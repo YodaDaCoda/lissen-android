@@ -18,6 +18,8 @@ import org.grakovne.lissen.common.moshi
 import org.grakovne.lissen.domain.AllItemsDownloadOption
 import org.grakovne.lissen.domain.EqualizerSettings
 import org.grakovne.lissen.domain.LibraryType
+import org.grakovne.lissen.domain.RearmExtensionMode
+import org.grakovne.lissen.domain.ResumeRewindLongMode
 import org.grakovne.lissen.domain.RewindOnPauseSettings
 import org.grakovne.lissen.domain.SeekTime
 import org.grakovne.lissen.domain.SleepTimerSettings
@@ -468,7 +470,65 @@ class SettingsBackupManagerTest {
     fun `saves sleep timer settings`() {
       preferences.importSettings(SettingsBackup(sleepTimerSettings = SleepTimerSettings(fadeEnabled = true, fadeSeconds = 45)))
 
-      verify { editor.putString("sleep_timer_settings", """{"fadeEnabled":true,"fadeSeconds":45}""") }
+      verify {
+        editor.putString(
+          "sleep_timer_settings",
+          """{"fadeEnabled":true,"fadeSeconds":45,"chimeOnFadeStart":true,"rearmEnabled":false,"chimeOnRearm":true,""" +
+            """"rearmViaHeadphoneButton":true,"rearmViaShake":true,"rearmExtensionMode":"FIXED",""" +
+            """"rearmExtensionSeconds":300,"resumeRewindThresholdSeconds":120,"resumeRewindShortSeconds":0,""" +
+            """"resumeRewindLongMode":"FIXED","resumeRewindLongSeconds":0,"chimeFadeVolume":50,"chimeRearmVolume":50,""" +
+            """"defaultTimerScheduleEnabled":false,"defaultTimerScheduleStartMinute":1200,"defaultTimerScheduleEndMinute":480}""",
+        )
+      }
+    }
+
+    @Test
+    fun `round-trips the new re-arm, resume-rewind, chime volume and schedule fields through export and import`() {
+      val settings =
+        SleepTimerSettings(
+          fadeEnabled = true,
+          fadeSeconds = 20,
+          chimeOnFadeStart = false,
+          rearmEnabled = true,
+          chimeOnRearm = false,
+          rearmViaHeadphoneButton = false,
+          rearmViaShake = true,
+          rearmExtensionMode = RearmExtensionMode.MATCH_TIMER_DURATION,
+          rearmExtensionSeconds = 600,
+          resumeRewindThresholdSeconds = 90,
+          resumeRewindShortSeconds = 15,
+          resumeRewindLongMode = ResumeRewindLongMode.MATCH_EXTENSION,
+          resumeRewindLongSeconds = 45,
+          chimeFadeVolume = 80,
+          chimeRearmVolume = 30,
+          defaultTimerScheduleEnabled = true,
+          defaultTimerScheduleStartMinute = 1260,
+          defaultTimerScheduleEndMinute = 420,
+        )
+
+      every { sharedPreferences.getString("sleep_timer_settings", null) } returns
+        """{"fadeEnabled":true,"fadeSeconds":20,"chimeOnFadeStart":false,"rearmEnabled":true,"chimeOnRearm":false,""" +
+        """"rearmViaHeadphoneButton":false,"rearmViaShake":true,"rearmExtensionMode":"MATCH_TIMER_DURATION",""" +
+        """"rearmExtensionSeconds":600,"resumeRewindThresholdSeconds":90,"resumeRewindShortSeconds":15,""" +
+        """"resumeRewindLongMode":"MATCH_EXTENSION","resumeRewindLongSeconds":45,"chimeFadeVolume":80,""" +
+        """"chimeRearmVolume":30,"defaultTimerScheduleEnabled":true,"defaultTimerScheduleStartMinute":1260,""" +
+        """"defaultTimerScheduleEndMinute":420}"""
+
+      val backup = preferences.exportSettings()
+      assertEquals(settings, backup.sleepTimerSettings)
+
+      preferences.importSettings(backup)
+      verify {
+        editor.putString(
+          "sleep_timer_settings",
+          """{"fadeEnabled":true,"fadeSeconds":20,"chimeOnFadeStart":false,"rearmEnabled":true,"chimeOnRearm":false,""" +
+            """"rearmViaHeadphoneButton":false,"rearmViaShake":true,"rearmExtensionMode":"MATCH_TIMER_DURATION",""" +
+            """"rearmExtensionSeconds":600,"resumeRewindThresholdSeconds":90,"resumeRewindShortSeconds":15,""" +
+            """"resumeRewindLongMode":"MATCH_EXTENSION","resumeRewindLongSeconds":45,"chimeFadeVolume":80,""" +
+            """"chimeRearmVolume":30,"defaultTimerScheduleEnabled":true,"defaultTimerScheduleStartMinute":1260,""" +
+            """"defaultTimerScheduleEndMinute":420}""",
+        )
+      }
     }
 
     @Test

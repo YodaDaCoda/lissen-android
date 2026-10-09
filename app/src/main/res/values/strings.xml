@@ -105,6 +105,24 @@
         <item quantity="one">%d second</item>
         <item quantity="other">%d seconds</item>
     </plurals>
+    <plurals name="rearm_extension_minutes">
+        <item quantity="one">%d minute</item>
+        <item quantity="other">%d minutes</item>
+    </plurals>
+    <plurals name="resume_rewind_seconds">
+        <item quantity="one">%d second</item>
+        <item quantity="other">%d seconds</item>
+    </plurals>
+    <plurals name="duration_seconds">
+        <item quantity="one">%d second</item>
+        <item quantity="other">%d seconds</item>
+    </plurals>
+    <plurals name="duration_minutes">
+        <item quantity="one">%d minute</item>
+        <item quantity="other">%d minutes</item>
+    </plurals>
+    <string name="duration_minutes_seconds">%1$dm %2$ds</string>
+    <string name="duration_hours_minutes">%1$dh %2$dm</string>
     <string name="timer_option_disable_timer">Disable Timer</string>
     <string name="timer_title">Sleep Timer</string>
     <string name="player_screen_timer_navigation">Timer</string>
@@ -179,6 +197,38 @@
     <string name="sleep_timer_settings_description">Configure timer controls</string>
     <string name="sleep_timer_fade_title">Fade out</string>
     <string name="sleep_timer_fade_disabled">Disabled</string>
+    <string name="sleep_timer_chime_title">Chime at fade start</string>
+    <string name="sleep_timer_chime_description">Play a short sound the moment the fade-out begins</string>
+    <string name="sleep_timer_chime_fade_volume_title">Fade chime volume</string>
+    <string name="sleep_timer_chime_rearm_volume_title">Re-arm chime volume</string>
+    <string name="sleep_timer_rearm_title">Re-arm</string>
+    <string name="sleep_timer_rearm_description">Cancel the impending stop during the fade-out window</string>
+    <string name="sleep_timer_chime_on_rearm_title">Chime on re-arm</string>
+    <string name="sleep_timer_chime_on_rearm_description">Play a short sound when a re-arm cancels the impending stop</string>
+    <string name="sleep_timer_rearm_headphone_title">Via headphone button</string>
+    <string name="sleep_timer_rearm_headphone_description">A play/pause press during the fade-out re-arms instead of toggling playback</string>
+    <string name="sleep_timer_rearm_shake_title">Via shake</string>
+    <string name="sleep_timer_rearm_shake_description">Shaking the phone during the fade-out re-arms the timer</string>
+    <string name="sleep_timer_rearm_extension_mode_title">Re-arm extends by</string>
+    <string name="sleep_timer_rearm_extension_mode_fixed">A fixed amount</string>
+    <string name="sleep_timer_rearm_extension_mode_match_timer">The timer\'s original length</string>
+    <string name="sleep_timer_rearm_extension_title">Extension amount</string>
+    <string name="sleep_timer_resume_rewind_threshold_title">Resume within</string>
+    <string name="sleep_timer_resume_rewind_short_title">Quick rewind</string>
+    <string name="sleep_timer_resume_rewind_long_mode_title">After that, rewind by</string>
+    <string name="sleep_timer_resume_rewind_long_mode_fixed">A fixed amount</string>
+    <string name="sleep_timer_resume_rewind_long_mode_match_extension">The re-arm extension amount</string>
+    <string name="sleep_timer_resume_rewind_long_mode_match_timer">The timer\'s original length</string>
+    <string name="sleep_timer_resume_rewind_long_title">Long rewind amount</string>
+    <string name="sleep_timer_resume_rewind_off">Off</string>
+    <string name="sleep_timer_section_fade">Fade out</string>
+    <string name="sleep_timer_section_rearm">Re-arm</string>
+    <string name="sleep_timer_section_resume_rewind">Resume rewind</string>
+    <string name="sleep_timer_section_default">Default timer</string>
+    <string name="default_timer_schedule_title">Only during these hours</string>
+    <string name="default_timer_schedule_description">Auto-apply the default timer only between the times below, e.g. overnight</string>
+    <string name="default_timer_schedule_start_title">Starts at</string>
+    <string name="default_timer_schedule_end_title">Ends at</string>
     <string name="rewind_interval">Rewind interval</string>
     <string name="forward_interval">Forward interval</string>
     <string name="rewind_on_pause_title">Rewind on pause</string>

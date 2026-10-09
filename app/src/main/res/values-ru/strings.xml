@@ -95,6 +95,32 @@
         <item quantity="many">%d секунд</item>
         <item quantity="other">%d секунды</item>
     </plurals>
+    <plurals name="rearm_extension_minutes">
+        <item quantity="one">%d минута</item>
+        <item quantity="few">%d минуты</item>
+        <item quantity="many">%d минут</item>
+        <item quantity="other">%d минуты</item>
+    </plurals>
+    <plurals name="resume_rewind_seconds">
+        <item quantity="one">%d секунда</item>
+        <item quantity="few">%d секунды</item>
+        <item quantity="many">%d секунд</item>
+        <item quantity="other">%d секунды</item>
+    </plurals>
+    <plurals name="duration_seconds">
+        <item quantity="one">%d секунда</item>
+        <item quantity="few">%d секунды</item>
+        <item quantity="many">%d секунд</item>
+        <item quantity="other">%d секунды</item>
+    </plurals>
+    <plurals name="duration_minutes">
+        <item quantity="one">%d минута</item>
+        <item quantity="few">%d минуты</item>
+        <item quantity="many">%d минут</item>
+        <item quantity="other">%d минуты</item>
+    </plurals>
+    <string name="duration_minutes_seconds">%1$dm %2$ds</string>
+    <string name="duration_hours_minutes">%1$dч %2$dм</string>
     <plurals name="series_books_count">
         <item quantity="one">%d книга</item>
         <item quantity="few">%d книги</item>
@@ -183,6 +209,38 @@
     <string name="sleep_timer_settings_description">Настройте управление таймером</string>
     <string name="sleep_timer_fade_title">Плавное затухание</string>
     <string name="sleep_timer_fade_disabled">Отключено</string>
+    <string name="sleep_timer_chime_title">Сигнал в начале затухания</string>
+    <string name="sleep_timer_chime_description">Короткий звук в момент начала плавного затухания</string>
+    <string name="sleep_timer_chime_fade_volume_title">Громкость сигнала затухания</string>
+    <string name="sleep_timer_chime_rearm_volume_title">Громкость сигнала перезапуска</string>
+    <string name="sleep_timer_rearm_title">Перезапуск таймера</string>
+    <string name="sleep_timer_rearm_description">Отменить остановку во время плавного затухания</string>
+    <string name="sleep_timer_chime_on_rearm_title">Сигнал при перезапуске</string>
+    <string name="sleep_timer_chime_on_rearm_description">Короткий звук при отмене остановки перезапуском</string>
+    <string name="sleep_timer_rearm_headphone_title">Кнопкой на наушниках</string>
+    <string name="sleep_timer_rearm_headphone_description">Нажатие play/pause во время затухания перезапускает таймер вместо переключения воспроизведения</string>
+    <string name="sleep_timer_rearm_shake_title">Встряхиванием</string>
+    <string name="sleep_timer_rearm_shake_description">Встряхивание телефона во время затухания перезапускает таймер</string>
+    <string name="sleep_timer_rearm_extension_mode_title">Продление таймера</string>
+    <string name="sleep_timer_rearm_extension_mode_fixed">На фиксированное время</string>
+    <string name="sleep_timer_rearm_extension_mode_match_timer">На исходную длительность таймера</string>
+    <string name="sleep_timer_rearm_extension_title">Длительность продления</string>
+    <string name="sleep_timer_resume_rewind_threshold_title">Возобновление в течение</string>
+    <string name="sleep_timer_resume_rewind_short_title">Быстрая перемотка</string>
+    <string name="sleep_timer_resume_rewind_long_mode_title">После этого перематывать на</string>
+    <string name="sleep_timer_resume_rewind_long_mode_fixed">Фиксированное время</string>
+    <string name="sleep_timer_resume_rewind_long_mode_match_extension">Длительность продления таймера</string>
+    <string name="sleep_timer_resume_rewind_long_mode_match_timer">Исходную длительность таймера</string>
+    <string name="sleep_timer_resume_rewind_long_title">Длительная перемотка</string>
+    <string name="sleep_timer_resume_rewind_off">Выкл</string>
+    <string name="sleep_timer_section_fade">Плавное затухание</string>
+    <string name="sleep_timer_section_rearm">Перезапуск таймера</string>
+    <string name="sleep_timer_section_resume_rewind">Перемотка при возобновлении</string>
+    <string name="sleep_timer_section_default">Таймер по умолчанию</string>
+    <string name="default_timer_schedule_title">Только в эти часы</string>
+    <string name="default_timer_schedule_description">Применять таймер по умолчанию только между указанным временем, например ночью</string>
+    <string name="default_timer_schedule_start_title">Начало</string>
+    <string name="default_timer_schedule_end_title">Конец</string>
     <string name="rewind_interval">Интервал перемотки назад</string>
     <string name="forward_interval">Интервал перемотки вперёд</string>
     <string name="rewind_on_pause_title">Перемотка назад при паузе</string>

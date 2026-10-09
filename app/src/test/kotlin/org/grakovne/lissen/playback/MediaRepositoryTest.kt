@@ -8,6 +8,7 @@ import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -19,7 +20,11 @@ import org.grakovne.lissen.content.LissenMediaProvider
 import org.grakovne.lissen.domain.CurrentEpisodeTimerOption
 import org.grakovne.lissen.domain.DetailedItem
 import org.grakovne.lissen.domain.DurationTimerOption
+import org.grakovne.lissen.domain.RearmExtensionMode
+import org.grakovne.lissen.domain.ResumeRewindLongMode
+import org.grakovne.lissen.domain.RewindOnPauseSettings
 import org.grakovne.lissen.domain.SeekTime
+import org.grakovne.lissen.domain.SleepTimerSettings
 import org.grakovne.lissen.persistence.preferences.PlaybackPreferences
 import org.grakovne.lissen.playback.PlaybackFixtures.bookmark
 import org.grakovne.lissen.playback.PlaybackFixtures.descending
@@ -32,6 +37,7 @@ import org.grakovne.lissen.playback.service.DefaultTimerActivator
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
@@ -122,12 +128,17 @@ class MediaRepositoryTest {
   private val autoSkipPreferences = mockk<AutoSkipPreferences>(relaxed = true)
   private val mediaChannel = mockk<LissenMediaProvider>(relaxed = true)
   private val steps = PlaybackSteps()
+  private val carConnected = MutableStateFlow(false)
+  private val carConnectionMonitor =
+    mockk<CarConnectionMonitor>(relaxed = true) { every { isConnected } returns carConnected }
 
   private lateinit var repository: MediaRepository
 
   @BeforeEach
   fun setUp() {
     Dispatchers.setMain(UnconfinedTestDispatcher())
+
+    carConnected.value = false
 
     every { preferences.getPlaybackSpeed() } returns 1f
     every { preferences.getSeekTime() } returns SeekTime.Default
@@ -145,6 +156,7 @@ class MediaRepositoryTest {
         player,
         mainThread,
         steps,
+        carConnectionMonitor,
       ).apply { ioDispatcher = UnconfinedTestDispatcher() }
   }
 
@@ -623,6 +635,414 @@ class MediaRepositoryTest {
         repository.refreshTimer()
 
         assertEquals(PlaybackCommand.SetTimer(20.0, CurrentEpisodeTimerOption), eventBus.commands.first())
+      }
+  }
+
+  @Nested
+  inner class SleepTimerRearm {
+    @Test
+    fun `a duration timer re-arm extends the countdown by the configured amount`() =
+      runTest {
+        every { preferences.getSleepTimerSettings() } returns
+          SleepTimerSettings(fadeEnabled = true, fadeSeconds = 30, rearmEnabled = true, rearmExtensionSeconds = 300)
+        playing(podcast(progress = progress(0.0)))
+
+        val option = DurationTimerOption(5)
+        repository.updateTimer(option)
+        assertEquals(PlaybackCommand.SetTimer(300.0, option), eventBus.commands.first())
+
+        eventBus.emit(PlaybackEvent.TimerTick(20L))
+
+        assertTrue(repository.rearmTimer(RearmTrigger.HEADPHONE_BUTTON))
+        assertEquals(PlaybackCommand.SetTimer(320.0, option), eventBus.commands.first())
+        assertEquals(PlaybackEvent.TimerRearmed, eventBus.events.first())
+      }
+
+    @Test
+    fun `a duration timer re-arm can extend by the timer's own original length instead`() =
+      runTest {
+        every { preferences.getSleepTimerSettings() } returns
+          SleepTimerSettings(
+            fadeEnabled = true,
+            fadeSeconds = 30,
+            rearmEnabled = true,
+            rearmExtensionMode = RearmExtensionMode.MATCH_TIMER_DURATION,
+            rearmExtensionSeconds = 300,
+          )
+        playing(podcast(progress = progress(0.0)))
+
+        val option = DurationTimerOption(2)
+        repository.updateTimer(option)
+        assertEquals(PlaybackCommand.SetTimer(120.0, option), eventBus.commands.first())
+
+        eventBus.emit(PlaybackEvent.TimerTick(20L))
+
+        assertTrue(repository.rearmTimer(RearmTrigger.HEADPHONE_BUTTON))
+        // 20s remaining + 120s (the timer's own 2-minute length), not the unused 300s fixed amount
+        assertEquals(PlaybackCommand.SetTimer(140.0, option), eventBus.commands.first())
+      }
+
+    @Test
+    fun `re-arm does nothing when the feature is disabled`() =
+      runTest {
+        every { preferences.getSleepTimerSettings() } returns
+          SleepTimerSettings(fadeEnabled = true, fadeSeconds = 30, rearmEnabled = false)
+        playing(podcast(progress = progress(0.0)))
+
+        repository.updateTimer(DurationTimerOption(5))
+        eventBus.commands.first()
+        eventBus.emit(PlaybackEvent.TimerTick(20L))
+
+        assertFalse(repository.rearmTimer(RearmTrigger.HEADPHONE_BUTTON))
+      }
+
+    @Test
+    fun `re-arm does nothing outside the fade window`() =
+      runTest {
+        every { preferences.getSleepTimerSettings() } returns
+          SleepTimerSettings(fadeEnabled = true, fadeSeconds = 30, rearmEnabled = true)
+        playing(podcast(progress = progress(0.0)))
+
+        repository.updateTimer(DurationTimerOption(5))
+        eventBus.commands.first()
+        eventBus.emit(PlaybackEvent.TimerTick(45L))
+
+        assertFalse(repository.rearmTimer(RearmTrigger.HEADPHONE_BUTTON))
+      }
+
+    @Test
+    fun `re-arm respects the per-trigger toggle`() =
+      runTest {
+        every { preferences.getSleepTimerSettings() } returns
+          SleepTimerSettings(fadeEnabled = true, fadeSeconds = 30, rearmEnabled = true, rearmViaShake = false)
+        playing(podcast(progress = progress(0.0)))
+
+        repository.updateTimer(DurationTimerOption(5))
+        eventBus.commands.first()
+        eventBus.emit(PlaybackEvent.TimerTick(20L))
+
+        assertFalse(repository.rearmTimer(RearmTrigger.SHAKE))
+      }
+
+    @Test
+    fun `a second trigger shortly after a successful re-arm does not re-arm again`() =
+      runTest {
+        every { preferences.getSleepTimerSettings() } returns
+          SleepTimerSettings(fadeEnabled = true, fadeSeconds = 30, rearmEnabled = true)
+        playing(podcast(progress = progress(0.0)))
+        repository.updateTimer(DurationTimerOption(5))
+        eventBus.commands.first()
+        eventBus.emit(PlaybackEvent.TimerTick(20L))
+
+        var clock = 10_000L
+        repository.elapsedTimeMillis = { clock }
+
+        assertTrue(repository.rearmTimer(RearmTrigger.HEADPHONE_BUTTON))
+
+        // _timerRemaining is still the stale, within-the-window value: no fresh TimerTick has
+        // arrived yet, matching the real lag before PlaybackTimer's SetTimer command is processed
+        clock += 1_500L
+        assertFalse(repository.rearmTimer(RearmTrigger.HEADPHONE_BUTTON), "too soon after the last re-arm")
+
+        clock += 1_000L // now 2.5s after the first re-arm: past the debounce window
+        assertTrue(repository.rearmTimer(RearmTrigger.HEADPHONE_BUTTON))
+      }
+
+    @Test
+    fun `re-arm with no timer running does nothing`() =
+      runTest {
+        every { preferences.getSleepTimerSettings() } returns
+          SleepTimerSettings(fadeEnabled = true, fadeSeconds = 30, rearmEnabled = true)
+        playing(podcast(progress = progress(0.0)))
+
+        assertFalse(repository.rearmTimer(RearmTrigger.HEADPHONE_BUTTON))
+      }
+
+    @Test
+    fun `an episode timer re-arm lets the current chapter finish and re-arms for the next one`() =
+      runTest {
+        every { preferences.getSleepTimerSettings() } returns
+          SleepTimerSettings(fadeEnabled = true, fadeSeconds = 30, rearmEnabled = true)
+        // 5s into c1 (30..70s): remaining in chapter is 35s
+        playing(podcast(progress = progress(35.0)))
+        repository.updateTimer(CurrentEpisodeTimerOption)
+        assertEquals(PlaybackCommand.SetTimer(35.0, CurrentEpisodeTimerOption), eventBus.commands.first())
+
+        // the fade window opens with 20s left in c1
+        eventBus.emit(PlaybackEvent.TimerTick(20L))
+        assertTrue(repository.rearmTimer(RearmTrigger.SHAKE))
+        assertEquals(PlaybackCommand.SuppressNextChapterStop, eventBus.commands.first())
+        assertEquals(PlaybackEvent.TimerRearmed, eventBus.events.first())
+
+        // playback runs on into c2 at its very start, as the auto-transition reports it
+        player.currentMediaItemIndex = 2
+        player.currentPositionMs = 0L
+        player.listener.onPositionDiscontinuity(byPlayback = true)
+
+        assertEquals(2, repository.currentChapterIndex.value)
+        // c2 spans 70..120s: a fresh 50s countdown is armed for it, where an un-rearmed
+        // transition would have sent nothing at all (PlaybackTimer just expires on its own)
+        assertEquals(PlaybackCommand.SetTimer(50.0, CurrentEpisodeTimerOption), eventBus.commands.first())
+
+        // the re-arm is one-shot: the next auto-transition is not re-armed again
+        val minutes = DurationTimerOption(5)
+        player.currentMediaItemIndex = 2
+        player.currentPositionMs = 10_000L
+        player.listener.onPositionDiscontinuity(byPlayback = true)
+        repository.updateTimer(minutes)
+        assertEquals(PlaybackCommand.SetTimer(300.0, minutes), eventBus.commands.first(), "no stray re-arm survived into c2")
+      }
+  }
+
+  @Nested
+  inner class TimerPauseRewind {
+    @BeforeEach
+    fun freezeClock() {
+      // deterministic "quick resume" by default; individual tests bump this past the threshold
+      repository.elapsedTimeMillis = { 0L }
+    }
+
+    private suspend fun pauseByTimer() {
+      eventBus.emit(PlaybackEvent.TimerExpired)
+      player.isPlaying = false
+      player.listener.onIsPlayingChanged(false)
+    }
+
+    private fun resume() {
+      player.isPlaying = true
+      player.listener.onIsPlayingChanged(true)
+    }
+
+    @Test
+    fun `the short rewind happens at the pause, not at the resume`() =
+      runTest {
+        every { preferences.getSleepTimerSettings() } returns SleepTimerSettings(resumeRewindShortSeconds = 20)
+        playing(podcast(progress = progress(35.0)), playing = true)
+
+        eventBus.emit(PlaybackEvent.TimerExpired)
+
+        // 35s - 20s = 15s, inside c0 (0..30s)
+        assertEquals(listOf("pause", "seekTo(0, 15000)"), player.calls)
+
+        player.calls.clear()
+        player.isPlaying = false
+        player.listener.onIsPlayingChanged(false)
+        resume()
+
+        assertTrue(player.calls.none { it.startsWith("seekTo") }, "a quick resume finds the position already rewound")
+      }
+
+    @Test
+    fun `a zero short rewind setting never seeks at the pause`() =
+      runTest {
+        every { preferences.getSleepTimerSettings() } returns SleepTimerSettings(resumeRewindShortSeconds = 0)
+        playing(podcast(progress = progress(35.0)), playing = true)
+
+        eventBus.emit(PlaybackEvent.TimerExpired)
+
+        assertEquals(listOf("pause"), player.calls)
+      }
+
+    @Test
+    fun `a resume inside the threshold cancels the pending long rewind`() =
+      runTest {
+        every { preferences.getSleepTimerSettings() } returns
+          SleepTimerSettings(resumeRewindThresholdSeconds = 120, resumeRewindShortSeconds = 20, resumeRewindLongSeconds = 25)
+        playing(podcast(progress = progress(35.0)), playing = true)
+
+        pauseByTimer()
+        val delayed = mainThread.scheduled.single()
+        player.calls.clear()
+
+        repository.elapsedTimeMillis = { 119_000L }
+        resume()
+
+        assertTrue(player.calls.none { it.startsWith("seekTo") })
+        assertFalse(mainThread.scheduled.contains(delayed), "the delayed long rewind is cancelled")
+      }
+
+    @Test
+    fun `the long rewind tops up the short one when the threshold passes while paused`() =
+      runTest {
+        every { preferences.getSleepTimerSettings() } returns
+          SleepTimerSettings(
+            resumeRewindThresholdSeconds = 120,
+            resumeRewindShortSeconds = 20,
+            resumeRewindLongMode = ResumeRewindLongMode.FIXED,
+            resumeRewindLongSeconds = 25,
+          )
+        playing(podcast(progress = progress(35.0)), playing = true)
+
+        pauseByTimer()
+        player.calls.clear()
+
+        mainThread.scheduled.single().run()
+
+        // already at 15s after the short rewind; 25s in total is 10s
+        assertEquals(listOf("seekTo(0, 10000)"), player.calls)
+
+        player.calls.clear()
+        repository.elapsedTimeMillis = { 121_000L }
+        resume()
+        assertTrue(player.calls.none { it.startsWith("seekTo") }, "the top-up must not repeat at the resume")
+      }
+
+    @Test
+    fun `a resume past the threshold applies the long rewind when the delayed one never ran`() =
+      runTest {
+        every { preferences.getSleepTimerSettings() } returns
+          SleepTimerSettings(
+            resumeRewindThresholdSeconds = 120,
+            resumeRewindShortSeconds = 20,
+            resumeRewindLongMode = ResumeRewindLongMode.FIXED,
+            resumeRewindLongSeconds = 25,
+          )
+        playing(podcast(progress = progress(35.0)), playing = true)
+
+        pauseByTimer()
+        val delayed = mainThread.scheduled.single()
+        player.calls.clear()
+
+        repository.elapsedTimeMillis = { 121_000L }
+        resume()
+
+        assertEquals(listOf("seekTo(0, 10000)"), player.calls)
+        assertFalse(mainThread.scheduled.contains(delayed), "the delayed job is dropped once applied")
+      }
+
+    @Test
+    fun `clearing the prepared item keeps the pending long rewind for the same book`() =
+      runTest {
+        every { preferences.getSleepTimerSettings() } returns
+          SleepTimerSettings(resumeRewindThresholdSeconds = 120, resumeRewindShortSeconds = 20, resumeRewindLongSeconds = 25)
+        playing(podcast(progress = progress(35.0)), playing = true)
+
+        pauseByTimer()
+        repository.clearPreparedItem()
+        player.calls.clear()
+
+        repository.elapsedTimeMillis = { 121_000L }
+        resume()
+
+        assertEquals(listOf("seekTo(0, 10000)"), player.calls)
+      }
+
+    @Test
+    fun `rewind-on-pause that already moved the playhead is not doubled by the short rewind`() =
+      runTest {
+        every { preferences.getRewindOnPause() } returns RewindOnPauseSettings(enabled = true, seconds = 20)
+        every { preferences.getSleepTimerSettings() } returns SleepTimerSettings(resumeRewindShortSeconds = 20)
+        playing(podcast(progress = progress(35.0)), playing = true)
+
+        eventBus.emit(PlaybackEvent.TimerExpired)
+
+        assertEquals(listOf("pause"), player.calls)
+      }
+
+    @Test
+    fun `the long rewind can match the re-arm extension amount`() =
+      runTest {
+        every { preferences.getSleepTimerSettings() } returns
+          SleepTimerSettings(
+            resumeRewindThresholdSeconds = 120,
+            resumeRewindLongMode = ResumeRewindLongMode.MATCH_EXTENSION,
+            rearmExtensionSeconds = 20,
+          )
+        playing(podcast(progress = progress(35.0)), playing = true)
+
+        repository.updateTimer(DurationTimerOption(5))
+        eventBus.commands.first()
+
+        pauseByTimer()
+        player.calls.clear()
+        mainThread.scheduled.single().run()
+
+        // 35s - 20s (the re-arm extension) = 15s, inside c0
+        assertEquals(listOf("seekTo(0, 15000)"), player.calls)
+      }
+
+    @Test
+    fun `the long rewind can match a duration timer's own length`() =
+      runTest {
+        every { preferences.getSleepTimerSettings() } returns
+          SleepTimerSettings(
+            resumeRewindThresholdSeconds = 120,
+            resumeRewindLongMode = ResumeRewindLongMode.MATCH_TIMER_DURATION,
+          )
+        playing(podcast(progress = progress(100.0)), playing = true)
+
+        repository.updateTimer(DurationTimerOption(1))
+        eventBus.commands.first()
+
+        pauseByTimer()
+        player.calls.clear()
+        mainThread.scheduled.single().run()
+
+        // 100s - 60s (the 1 minute timer's own length) = 40s, inside c1 (30..70s, 10s in)
+        assertEquals(listOf("seekTo(1, 10000)"), player.calls)
+      }
+
+    @Test
+    fun `the long rewind matching an episode timer rewinds to the chapter start`() =
+      runTest {
+        every { preferences.getSleepTimerSettings() } returns
+          SleepTimerSettings(
+            resumeRewindThresholdSeconds = 120,
+            resumeRewindLongMode = ResumeRewindLongMode.MATCH_TIMER_DURATION,
+          )
+        // 5s into c1 (30..70s)
+        playing(podcast(progress = progress(35.0)), playing = true)
+
+        repository.updateTimer(CurrentEpisodeTimerOption)
+        eventBus.commands.first()
+
+        pauseByTimer()
+        player.calls.clear()
+        mainThread.scheduled.single().run()
+
+        assertEquals(listOf("seekTo(1, 0)"), player.calls, "must rewind to the start of c1, not a fixed offset")
+      }
+  }
+
+  @Nested
+  inner class SleepTimerDisabledWhileDriving {
+    @Test
+    fun `setting a timer while connected to a car does nothing`() =
+      runTest {
+        carConnected.value = true
+        playing(podcast(progress = progress(0.0)))
+
+        repository.updateTimer(DurationTimerOption(5))
+
+        assertNull(repository.timerOption.value)
+      }
+
+    @Test
+    fun `connecting to a car cancels an already-running timer`() =
+      runTest {
+        playing(podcast(progress = progress(0.0)))
+        val option = DurationTimerOption(5)
+        repository.updateTimer(option)
+        assertEquals(PlaybackCommand.SetTimer(300.0, option), eventBus.commands.first())
+
+        carConnected.value = true
+
+        assertNull(repository.timerOption.value)
+        assertEquals(PlaybackCommand.CancelTimer, eventBus.commands.first())
+      }
+
+    @Test
+    fun `disconnecting from a car does not bring the timer back`() =
+      runTest {
+        playing(podcast(progress = progress(0.0)))
+        repository.updateTimer(DurationTimerOption(5))
+        eventBus.commands.first()
+
+        carConnected.value = true
+        eventBus.commands.first()
+        carConnected.value = false
+
+        assertNull(repository.timerOption.value)
       }
   }
 }
