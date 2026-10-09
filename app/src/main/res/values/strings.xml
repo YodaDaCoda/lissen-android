@@ -30,6 +30,15 @@
     <string name="library_screen_library_title">Library</string>
     <string name="library_screen_continue_listening_title">Continue listening</string>
     <string name="library_screen_preferences_menu_item">Preferences</string>
+    <string name="onboarding_title">Welcome to Lissen</string>
+    <string name="onboarding_subtitle">Two permissions let Lissen work properly. You can skip either one and grant it later in the system settings.</string>
+    <string name="onboarding_notifications_title">Notifications</string>
+    <string name="onboarding_notifications_description">Shows the playback controls on the lock screen and in the notification shade while a book plays.</string>
+    <string name="onboarding_local_network_title">Nearby devices</string>
+    <string name="onboarding_local_network_description">Android calls this \"Nearby devices\". It lets Lissen reach an Audiobookshelf server on your home network. Skip it if your server is on the internet.</string>
+    <string name="onboarding_allow">Allow</string>
+    <string name="onboarding_allowed">Allowed</string>
+    <string name="onboarding_continue">Continue</string>
     <string name="login_screen_title">Connect to server</string>
     <string name="hint_server_url_input">Server URL</string>
     <string name="login_screen_login_input">Login</string>

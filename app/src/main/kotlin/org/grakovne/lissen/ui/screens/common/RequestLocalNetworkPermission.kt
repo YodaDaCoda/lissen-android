@@ -10,8 +10,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 
+fun isLocalNetworkPermissionRequired(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.CINNAMON_BUN
+
 fun hasLocalNetworkPermission(context: Context): Boolean =
-  when (Build.VERSION.SDK_INT >= Build.VERSION_CODES.CINNAMON_BUN) {
+  when (isLocalNetworkPermissionRequired()) {
     true -> ContextCompat.checkSelfPermission(context, localNetworkPermission()) == PackageManager.PERMISSION_GRANTED
     false -> true
   }

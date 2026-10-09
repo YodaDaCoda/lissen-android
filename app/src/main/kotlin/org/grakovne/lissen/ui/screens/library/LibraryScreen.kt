@@ -99,6 +99,7 @@ import org.grakovne.lissen.ui.screens.library.composables.placeholder.RecentBook
 import org.grakovne.lissen.viewmodel.CachingModelView
 import org.grakovne.lissen.viewmodel.LibrarySettingsViewModel
 import org.grakovne.lissen.viewmodel.LibraryViewModel
+import org.grakovne.lissen.viewmodel.OnboardingViewModel
 import org.grakovne.lissen.viewmodel.PlayerViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
@@ -109,6 +110,7 @@ fun LibraryScreen(
   playerViewModel: PlayerViewModel = hiltViewModel(),
   settingsViewModel: LibrarySettingsViewModel = hiltViewModel(),
   cachingModelView: CachingModelView = hiltViewModel(),
+  onboardingViewModel: OnboardingViewModel = hiltViewModel(),
   imageLoader: ImageLoader,
   networkService: NetworkService,
   linkedSearchToken: String? = null,
@@ -180,11 +182,14 @@ fun LibraryScreen(
     }
   }
 
-  RequestNotificationPermissions()
+  // the wizard asks for these on the first launch; this is the fallback for an install that predates it
+  if (onboardingViewModel.completed.not()) {
+    RequestNotificationPermissions()
 
-  RequestLocalNetworkPermission(
-    onGranted = { refreshContent(showPullRefreshing = false) },
-  )
+    RequestLocalNetworkPermission(
+      onGranted = { refreshContent(showPullRefreshing = false) },
+    )
+  }
 
   val isPlaceholderRequired by remember(library) {
     derivedStateOf {

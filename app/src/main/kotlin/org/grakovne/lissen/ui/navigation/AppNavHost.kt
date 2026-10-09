@@ -13,6 +13,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -20,10 +21,13 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import coil3.ImageLoader
 import org.grakovne.lissen.common.NetworkService
+import org.grakovne.lissen.persistence.preferences.OnboardingPreferences
 import org.grakovne.lissen.persistence.preferences.PlaybackPreferences
 import org.grakovne.lissen.persistence.preferences.SessionPreferences
 import org.grakovne.lissen.ui.screens.library.LibraryScreen
 import org.grakovne.lissen.ui.screens.login.LoginScreen
+import org.grakovne.lissen.ui.screens.onboarding.OnboardingScreen
+import org.grakovne.lissen.ui.screens.onboarding.isOnboardingRequired
 import org.grakovne.lissen.ui.screens.player.PlayerScreen
 import org.grakovne.lissen.ui.screens.settings.SettingsScreen
 import org.grakovne.lissen.ui.screens.settings.advanced.AdvancedSettingsComposable
@@ -61,11 +65,14 @@ fun AppNavHost(
   navController: NavHostController,
   playbackPreferences: PlaybackPreferences,
   sessionPreferences: SessionPreferences,
+  onboardingPreferences: OnboardingPreferences,
   networkService: NetworkService,
   navigationService: AppNavigationService,
   imageLoader: ImageLoader,
   appLaunchAction: AppLaunchAction,
 ) {
+  val context = LocalContext.current
+
   // used only on the first layout, so it is read once
   val startDestination =
     remember {
@@ -73,7 +80,10 @@ fun AppNavHost(
 
       when {
         sessionPreferences.hasCredentials().not() -> {
-          ROUTE_LOGIN
+          when (isOnboardingRequired(context, onboardingPreferences)) {
+            true -> ROUTE_ONBOARDING
+            false -> ROUTE_LOGIN
+          }
         }
 
         appLaunchAction == AppLaunchAction.MANAGE_DOWNLOADS -> {
@@ -169,6 +179,10 @@ fun AppNavHost(
           bookSubtitle = bookSubtitle,
           playInstantly = startInstantly,
         )
+      }
+
+      composable(route = ROUTE_ONBOARDING) {
+        OnboardingScreen(onFinished = navigationService::showLogin)
       }
 
       composable(route = ROUTE_LOGIN) {
