@@ -31,6 +31,15 @@
     <string name="library_screen_library_title">Библиотека</string>
     <string name="library_screen_continue_listening_title">Продолжить слушать</string>
     <string name="library_screen_preferences_menu_item">Настройки</string>
+    <string name="onboarding_title">Добро пожаловать в Lissen</string>
+    <string name="onboarding_subtitle">Два разрешения нужны для полноценной работы Lissen. Любое можно пропустить и выдать позже в настройках системы.</string>
+    <string name="onboarding_notifications_title">Уведомления</string>
+    <string name="onboarding_notifications_description">Показывают управление воспроизведением на экране блокировки и в шторке, пока играет книга.</string>
+    <string name="onboarding_local_network_title">Устройства поблизости</string>
+    <string name="onboarding_local_network_description">Так Android называет это разрешение. Оно позволяет Lissen подключаться к серверу Audiobookshelf в вашей домашней сети. Если сервер доступен из интернета, пропустите его.</string>
+    <string name="onboarding_allow">Разрешить</string>
+    <string name="onboarding_allowed">Разрешено</string>
+    <string name="onboarding_continue">Продолжить</string>
     <string name="login_screen_title">Подключиться к серверу</string>
     <string name="hint_server_url_input">URL сервера</string>
     <string name="login_screen_login_input">Имя пользователя</string>

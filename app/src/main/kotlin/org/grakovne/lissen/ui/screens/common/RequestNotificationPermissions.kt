@@ -1,6 +1,7 @@
 package org.grakovne.lissen.ui.screens.common
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -9,6 +10,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
+
+fun isNotificationPermissionRequired(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+
+fun hasNotificationPermission(context: Context): Boolean =
+  when (isNotificationPermissionRequired()) {
+    true -> ContextCompat.checkSelfPermission(context, notificationPermission()) == PackageManager.PERMISSION_GRANTED
+    false -> true
+  }
+
+fun notificationPermission(): String = Manifest.permission.POST_NOTIFICATIONS
 
 @Composable
 fun RequestNotificationPermissions() {

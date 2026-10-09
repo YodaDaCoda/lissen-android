@@ -19,6 +19,7 @@ import coil3.ImageLoader
 import dagger.hilt.android.AndroidEntryPoint
 import org.grakovne.lissen.common.NetworkService
 import org.grakovne.lissen.persistence.preferences.AppearancePreferences
+import org.grakovne.lissen.persistence.preferences.OnboardingPreferences
 import org.grakovne.lissen.persistence.preferences.PlaybackPreferences
 import org.grakovne.lissen.persistence.preferences.SessionPreferences
 import org.grakovne.lissen.ui.navigation.AppLaunchAction
@@ -40,6 +41,9 @@ class AppActivity : ComponentActivity() {
 
   @Inject
   lateinit var sessionPreferences: SessionPreferences
+
+  @Inject
+  lateinit var onboardingPreferences: OnboardingPreferences
 
   @Inject
   lateinit var imageLoader: ImageLoader
@@ -79,6 +83,7 @@ class AppActivity : ComponentActivity() {
             navigationService = appNavigationService,
             playbackPreferences = playbackPreferences,
             sessionPreferences = sessionPreferences,
+            onboardingPreferences = onboardingPreferences,
             imageLoader = imageLoader,
             networkService = networkService,
             appLaunchAction = getLaunchAction(intent),
