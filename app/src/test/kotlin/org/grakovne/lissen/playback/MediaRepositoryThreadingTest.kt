@@ -6,6 +6,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
@@ -111,6 +112,7 @@ class MediaRepositoryThreadingTest {
             player,
             InlineMainThread(),
             PlaybackSteps(),
+            mockk<CarConnectionMonitor>(relaxed = true) { every { isConnected } returns MutableStateFlow(false) },
           ).apply { this.ioDispatcher = ioDispatcher }
 
         val mainThread = withContext(mainDispatcher) { Thread.currentThread() }

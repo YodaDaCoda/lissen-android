@@ -251,6 +251,7 @@ dependencies {
   implementation(libs.logging.interceptor)
   implementation(libs.okhttp)
   implementation(libs.androidx.browser)
+  implementation(libs.androidx.car.app)
   implementation(libs.androidx.collection)
   
   implementation(libs.coil.compose)

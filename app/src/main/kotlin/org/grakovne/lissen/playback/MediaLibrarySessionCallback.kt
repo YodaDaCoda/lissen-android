@@ -7,7 +7,11 @@ import android.os.Bundle
 import android.os.Parcelable
 import android.util.LruCache
 import android.view.KeyEvent
+import android.view.KeyEvent.KEYCODE_HEADSETHOOK
 import android.view.KeyEvent.KEYCODE_MEDIA_NEXT
+import android.view.KeyEvent.KEYCODE_MEDIA_PAUSE
+import android.view.KeyEvent.KEYCODE_MEDIA_PLAY
+import android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE
 import android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS
 import androidx.annotation.OptIn
 import androidx.core.net.toUri
@@ -149,6 +153,16 @@ class MediaLibrarySessionCallback
         KEYCODE_MEDIA_PREVIOUS -> {
           mediaRepository.rewind()
           true
+        }
+
+        in PLAY_PAUSE_KEYCODES -> {
+          // only intercepted during the sleep timer's fade-out window; otherwise this re-arm
+          // attempt is a no-op and the default play/pause toggle runs as it always has
+          if (mediaRepository.rearmTimer(RearmTrigger.HEADPHONE_BUTTON)) {
+            true
+          } else {
+            super.onMediaButtonEvent(session, controllerInfo, intent)
+          }
         }
 
         else -> {
@@ -528,6 +542,9 @@ class MediaLibrarySessionCallback
         )
 
       private fun speedIcon(speed: Float) = SPEED_ICONS[speed] ?: Icon(CommandButton.ICON_PLAYBACK_SPEED)
+
+      private val PLAY_PAUSE_KEYCODES =
+        setOf(KEYCODE_MEDIA_PLAY_PAUSE, KEYCODE_HEADSETHOOK, KEYCODE_MEDIA_PLAY, KEYCODE_MEDIA_PAUSE)
 
       private val SKIP_BACK_ICONS =
         mapOf(

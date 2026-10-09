@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Test
 class SleepTimerFadeInteractionTest {
   private val player = mockk<ExoPlayer>(relaxed = true)
   private val preferences = mockk<PlaybackPreferences>(relaxed = true)
+  private val chimePlayer = mockk<SleepTimerChimePlayer>(relaxed = true)
   private val playerListener = slot<Player.Listener>()
   private var playerVolume = 1f
   private var isPlaying = true
@@ -106,7 +107,7 @@ class SleepTimerFadeInteractionTest {
     }
 
   @Test
-  fun `user pauses playback during the fade - no early restore, zero at the expiry`() =
+  fun `user pauses playback during the fade - the ramp freezes instead of continuing to descend`() =
     interactionTest { bus ->
       bus.emit(PlaybackEvent.TimerTick(30L))
       advanceTimeBy(10_000L)
@@ -114,34 +115,20 @@ class SleepTimerFadeInteractionTest {
       val midway = playerVolume
       assertTrue(midway < 1f)
 
-      // user pauses manually: the fade must not restore the volume on this pause
+      // user pauses manually: the fade must not restore the volume on this pause...
       isPlaying = false
       playerListener.captured.onIsPlayingChanged(false)
       runCurrent()
       assertEquals(midway, playerVolume, "a manual pause must not restore the volume")
 
-      // the timer keeps running while paused; the ramp continues to descend
-      val samples = mutableListOf(midway)
-      for (second in 20L downTo 1L) {
-        bus.emit(PlaybackEvent.TimerTick(second))
-        advanceTimeBy(1_000L)
-        runCurrent()
-        samples += playerVolume
-      }
-
-      samples.zipWithNext().forEach { (before, after) ->
-        assertTrue(after <= before, "volume jumped up from $before to $after while paused")
-      }
-      assertEquals(0f, samples.last())
-
-      // the expiry finds playback already stopped: the volume may return right away
-      bus.emit(PlaybackEvent.TimerExpired)
+      // ...and the ramp itself must freeze - it tracks listening time, not wall-clock time
+      advanceTimeBy(30_000L)
       runCurrent()
-      assertEquals(1f, playerVolume, "volume must be restored after the stopped playback expired")
+      assertEquals(midway, playerVolume, "the ramp must not advance while playback is paused")
     }
 
   @Test
-  fun `user resumes playback during the fade - the same ramp continues to zero`() =
+  fun `user resumes playback during the fade - the same ramp continues from where it froze`() =
     interactionTest { bus ->
       bus.emit(PlaybackEvent.TimerTick(30L))
       advanceTimeBy(10_000L)
@@ -152,21 +139,17 @@ class SleepTimerFadeInteractionTest {
       playerListener.captured.onIsPlayingChanged(false)
       advanceTimeBy(5_000L)
       runCurrent()
+      assertEquals(midway, playerVolume, "the ramp must not advance while paused")
 
-      // resuming must not raise the volume
+      // resuming must not itself change the volume, only let the ramp continue
       isPlaying = true
-      val atResume = playerVolume
-      assertTrue(atResume <= midway, "the volume lifted during the pause from $midway to $atResume")
-
       playerListener.captured.onIsPlayingChanged(true)
       runCurrent()
-      assertEquals(atResume, playerVolume, "resuming must not change the volume")
+      assertEquals(midway, playerVolume, "resuming must not jump the volume by itself")
 
-      for (second in 15L downTo 1L) {
-        bus.emit(PlaybackEvent.TimerTick(second))
-        advanceTimeBy(1_000L)
-        runCurrent()
-      }
+      // the remaining ~20s of the 30s fade play out from the same elapsed point
+      advanceTimeBy(20_000L)
+      runCurrent()
       assertEquals(0f, playerVolume)
 
       // the expiry pauses playback: zero until the player reports it stopped
@@ -189,7 +172,7 @@ class SleepTimerFadeInteractionTest {
       every { preferences.getSleepTimerSettings() } returns SleepTimerSettings(fadeEnabled = true, fadeSeconds = 30)
 
       val bus = PlaybackEventBus()
-      SleepTimerFadeService(player, bus, preferences).onCreate()
+      SleepTimerFadeService(player, bus, preferences, chimePlayer).onCreate()
       advanceUntilIdle()
 
       test(bus)

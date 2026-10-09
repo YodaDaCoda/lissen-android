@@ -43,6 +43,12 @@ sealed class PlaybackEvent {
   data class TimerTick(
     val remainingSeconds: Long,
   ) : PlaybackEvent()
+
+  /** The fade-out ramp just started; the re-arm window (headphone button / shake) is now open. */
+  data object TimerFadeStarted : PlaybackEvent()
+
+  /** A re-arm gesture (headphone button / shake) cancelled the impending stop. */
+  data object TimerRearmed : PlaybackEvent()
 }
 
 sealed class PlaybackCommand {
@@ -56,4 +62,7 @@ sealed class PlaybackCommand {
   ) : PlaybackCommand()
 
   data object CancelTimer : PlaybackCommand()
+
+  /** A single upcoming auto-transition stop (end-of-chapter timer) must not expire the timer. */
+  data object SuppressNextChapterStop : PlaybackCommand()
 }

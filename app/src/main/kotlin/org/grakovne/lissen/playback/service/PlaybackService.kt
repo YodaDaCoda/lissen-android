@@ -74,6 +74,11 @@ class PlaybackService : MediaLibraryService() {
             Timber.d("Command received: CANCEL_TIMER")
             cancelTimer()
           }
+
+          PlaybackCommand.SuppressNextChapterStop -> {
+            Timber.d("Command received: SUPPRESS_NEXT_CHAPTER_STOP")
+            playbackTimer.suppressNextChapterStop()
+          }
         }
       }
     }

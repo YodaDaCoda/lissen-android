@@ -157,12 +157,52 @@ class PlaybackTimerTest {
   }
 
   @Test
-  fun `a duration timer runs through a pause`() {
+  fun `a duration timer pauses with the player, but a brief stall just continues`() {
+    var clock = 1_000L
+    timer.elapsedTimeMillis = { clock }
     timer.startTimer(300.0, DurationTimerOption(5))
 
     listeners.forEach { it.onIsPlayingChanged(false) }
+    assertTrue(countdowns.single().paused)
 
-    assertFalse(countdowns.single().paused)
+    clock += 500L
+    listeners.forEach { it.onIsPlayingChanged(true) }
+
+    assertEquals(1, countdowns.size, "a brief stall must not replace the countdown")
+    assertTrue(countdowns.single().resumed)
+  }
+
+  @Test
+  fun `a duration timer paused for real restarts fresh at its current limit on resume`() =
+    runTest {
+      val events = record()
+      var clock = 1_000L
+      timer.elapsedTimeMillis = { clock }
+      timer.startTimer(300.0, DurationTimerOption(5))
+
+      listeners.forEach { it.onIsPlayingChanged(false) }
+      assertTrue(countdowns.single().paused)
+
+      clock += 5_000L
+      listeners.forEach { it.onIsPlayingChanged(true) }
+
+      assertEquals(2, countdowns.size, "a fresh countdown must replace the paused one")
+      assertTrue(countdowns[0].stopped)
+      assertFalse(countdowns[1].resumed)
+
+      assertEquals(
+        listOf(PlaybackEvent.TimerTick(300), PlaybackEvent.TimerCancelled, PlaybackEvent.TimerTick(300)),
+        events,
+      )
+    }
+
+  @Test
+  fun `a duration timer started while already paused starts paused`() {
+    every { player.isPlaying } returns false
+
+    timer.startTimer(300.0, DurationTimerOption(5))
+
+    assertTrue(countdowns.single().paused)
   }
 
   @Test
