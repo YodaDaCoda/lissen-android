@@ -36,6 +36,8 @@ constraints, bugs already hit once).
 
 ## Conventions this fork follows
 
+- **Build only when asked, no background Gradle/Kotlin daemons** — see build-system.md "When to build".
+
 - No `scripts/` directory exists yet; use `./gradlew` tasks directly, **via `devenv shell --`, online** (see build-system.md "How to run things") — don't
   invent wrapper scripts unless asked to standardize.
 - New preferences go through `SecurePreferenceStore`; Moshi JSON for structured values (see the

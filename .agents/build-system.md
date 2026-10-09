@@ -75,6 +75,18 @@ project needs:
 Run builds through `devenv shell -- ./gradlew ...` (or inside `devenv shell`) rather than a bare
 system Gradle, so the pinned SDK/JDK are on `PATH`.
 
+## When to build (hard rule)
+
+**Only run a Gradle build/test when the user explicitly asks for one.** Don't build "to verify" an
+edit, and don't leave anything running afterwards. The machine is memory-constrained (14 GiB RAM,
+swap routinely near full); a lingering Gradle + Kotlin daemon pair cost ~5.6 GB of swap.
+
+- `gradle.properties` sets `org.gradle.daemon=false` and `kotlin.compiler.execution.strategy=in-process`,
+  so each build is a single JVM that exits when done. Slower cold start is an accepted trade-off.
+  Don't re-enable the daemon or pass `--daemon`.
+- After any build, confirm nothing survived: `pgrep -fa 'gradle|kotlin-build-tools'` should be empty;
+  if not, `devenv shell -- ./gradlew --stop`, then `pkill -f 'GradleDaemon|kotlin-build-tools'`.
+
 ## How to run things (pitfalls already hit)
 
 Always go through devenv, and never pass `--offline`:

@@ -30,6 +30,19 @@ configure<EasyLauncherExtension> {
       ),
     )
   }
+  // distinguishes a sideloaded .dev build from a real install on the same device's home screen
+  buildTypes.register("dev") {
+    filters(
+      chromeLike(
+        mapOf(
+          "label" to "DEV",
+          "ribbonColor" to "#1565C0",
+          "labelColor" to "#FFFFFF",
+          "labelPadding" to 15,
+        ),
+      ),
+    )
+  }
 }
 
 kotlinter {
@@ -67,6 +80,22 @@ configurations.all {
 ksp {
   arg("room.schemaLocation", "$projectDir/schemas")
 }
+
+// Build-time overrides for the two distributable build types, "release" and "dev": -Pminified
+// toggles R8 shrink+non-debuggable vs unshrunk+debuggable+coverage, independent of which one
+// you're building - "release" defaults to minified, "dev" defaults to unshrunk/debug. Example for
+// a small sideload build to test on a phone: ./gradlew assembleDev -Pminified=true -PsingleAbi=true
+val minifiedOverride =
+  (project.findProperty("minified") as String?)?.also {
+    require(it in listOf("true", "false")) { "Unknown -Pminified '$it'; expected 'true' or 'false'" }
+  }?.toBoolean()
+
+// -PsingleAbi=true restricts packaging to one native ABI (-PtargetAbi, default arm64-v8a - a
+// Pixel 10 is arm64-v8a only) instead of all four. See androidComponents below.
+val knownAbis = listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+val singleAbi = (project.findProperty("singleAbi") as String?)?.toBoolean() ?: false
+val targetAbi = (project.findProperty("targetAbi") as String?) ?: "arm64-v8a"
+require(targetAbi in knownAbis) { "Unknown targetAbi '$targetAbi'; expected one of $knownAbis" }
 
 android {
   namespace = "org.grakovne.lissen"
@@ -113,32 +142,54 @@ android {
       if (project.hasProperty("RELEASE_STORE_FILE")) {
         signingConfig = signingConfigs.getByName("release")
       }
-      isMinifyEnabled = true
-      isShrinkResources = true
+      val minified = minifiedOverride ?: true
+      isMinifyEnabled = minified
+      isShrinkResources = minified
+      isDebuggable = !minified
+      enableUnitTestCoverage = !minified
+      enableAndroidTestCoverage = !minified
       proguardFiles(
         getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
       )
     }
+    // CI/E2E only - :minifiedTest targets org.grakovne.lissen.minified by name, so this stays its
+    // own always-shrunk, debug-signed package regardless of the -Pminified flag above.
     create("minified") {
       initWith(getByName("release"))
       applicationIdSuffix = ".minified"
       versionNameSuffix = " (MINIFIED TEST)"
       signingConfig = signingConfigs.getByName("debug")
       matchingFallbacks.add("release")
+      isMinifyEnabled = true
+      isShrinkResources = true
+      isDebuggable = false
     }
-    debug {
-      applicationIdSuffix = ".debug"
-      versionNameSuffix = " (DEBUG)"
+    // sideloadable test builds: same .dev package/signing regardless of -Pminified, so one
+    // install always replaces the other.
+    create("dev") {
+      initWith(getByName("release"))
+      applicationIdSuffix = ".dev"
+      versionNameSuffix = " (DEV)"
+      signingConfig = signingConfigs.getByName("debug")
       matchingFallbacks.add("release")
-      isDebuggable = true
+      val minified = minifiedOverride ?: false
+      isMinifyEnabled = minified
+      isShrinkResources = minified
+      isDebuggable = !minified
+      enableUnitTestCoverage = !minified
+      enableAndroidTestCoverage = !minified
     }
+    // kept only as the ./gradlew testDebugUnitTest compile target - not meant to be installed;
+    // use "dev" (unshrunk and debuggable by default) for that instead
+    debug {}
   }
   
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_25
     targetCompatibility = JavaVersion.VERSION_25
   }
-  
+
+
   buildFeatures {
     buildConfig = true
     compose = true
@@ -162,6 +213,22 @@ android {
     unitTests.all {
       it.useJUnitPlatform()
       it.maxParallelForks = 4
+    }
+  }
+}
+
+androidComponents {
+  // -PsingleAbi=true only: drop every prebuilt native lib ABI except targetAbi, for "release" and
+  // "dev" (never "minified" - CI/E2E doesn't use this flag). Scoped to these variants via the
+  // variant API rather than the module-wide `splits` DSL, so a plain assembleDev/assembleRelease
+  // keeps shipping every ABI.
+  if (singleAbi) {
+    listOf("release", "dev").forEach { buildType ->
+      onVariants(selector().withBuildType(buildType)) { variant ->
+        variant.packaging.jniLibs.excludes.addAll(
+          (knownAbis - targetAbi).map { "lib/$it/**" },
+        )
+      }
     }
   }
 }
