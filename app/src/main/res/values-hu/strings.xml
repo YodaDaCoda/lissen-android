@@ -106,7 +106,6 @@
     <string name="offline_cache_is_empty">Még nincs mentett tartalom</string>
     <string name="downloads_menu_download_option_remaining_episodes">Hátralévő epizódok</string>
     <string name="settings_screen_cached_items_title">Letöltések</string>
-    <string name="settings_screen_cached_items_hint">Mentett tartalom kezelése</string>
     <string name="downloads_menu_download_option_remaining_chapters">Hátralévő fejezetek</string>
     <string name="volume_boost_disabled">Letiltva</string>
     <string name="volume_boost_title">Megnövelt hangerő</string>

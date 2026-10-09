@@ -109,7 +109,6 @@
     <string name="login_error_host_url_shall_be_https_or_http">يجب أن يكون رابط الخادم بصيغة https:// أو http://</string>
     <string name="downloads_menu_download_option_remaining_chapters">الفصول المتبقية</string>
     <string name="downloads_menu_download_option_remaining_episodes">الحلقات المتبقية</string>
-    <string name="settings_screen_cached_items_hint">إدارة المحتوى المحفوظ</string>
     <string name="offline_cache_is_empty">لم يتم حفظ أي محتوى</string>
     <string name="settings_screen_cached_items_title">التنزيلات</string>
     <string name="player_screen_chapter_list_navigation_podcast">الحلقات</string>

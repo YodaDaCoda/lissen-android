@@ -40,6 +40,7 @@ import org.grakovne.lissen.R
 import org.grakovne.lissen.common.withHaptic
 import org.grakovne.lissen.domain.AllItemsDownloadOption
 import org.grakovne.lissen.domain.DownloadOption
+import org.grakovne.lissen.domain.DurationDownloadOption
 import org.grakovne.lissen.domain.LibraryType
 import org.grakovne.lissen.domain.NumberItemDownloadOption
 import org.grakovne.lissen.domain.RemainingItemsDownloadOption
@@ -56,6 +57,13 @@ private const val MAX_VALUE = 999
 private val presetCounts = listOf(1, 3, 5, 10)
 private val presetButtons = listOf<Int?>(null) + presetCounts
 private val sliderLabeledIndexes = listOf(OFF_VALUE, 1) + (5..MAX_VALUE step 5)
+
+private const val MAX_MINUTES = 24 * 60
+private val presetMinutes = listOf(30, 60, 120, 240)
+private val minutePresetButtons = listOf<Int?>(null) + presetMinutes
+private val minuteSliderLabeledIndexes = listOf(OFF_VALUE, 30) + (60..MAX_MINUTES step 60)
+
+private enum class DepthUnit { CHAPTERS, TIME }
 
 @Composable
 fun AutoCacheSettingsComposable(
@@ -110,7 +118,15 @@ private fun AutoCacheOptionsSheet(
   val context = LocalContext.current
   val view = LocalView.current
 
-  var value by remember { mutableIntStateOf(selectedOption.toSliderValue()) }
+  var unit by remember { mutableStateOf(selectedOption.toDepthUnit()) }
+  var itemValue by remember { mutableIntStateOf(selectedOption.toSliderValue()) }
+  var minuteValue by remember { mutableIntStateOf(selectedOption.toMinuteSliderValue()) }
+
+  fun currentOption(): DownloadOption? =
+    when (unit) {
+      DepthUnit.CHAPTERS -> itemValue.toDownloadOption()
+      DepthUnit.TIME -> minuteValue.toDurationDownloadOption()
+    }
 
   LissenModalBottomSheet(
     containerColor = colorScheme.background,
@@ -129,46 +145,118 @@ private fun AutoCacheOptionsSheet(
           style = typography.bodyLarge,
         )
 
-        CommonSlider(
-          internalValue = value,
-          range = OFF_VALUE..MAX_VALUE,
-          formatHeader = { current ->
-            current
-              .roundToInt()
-              .coerceIn(OFF_VALUE, MAX_VALUE)
-              .toDownloadOption()
-              .makeText(context, libraryType)
-          },
-          formatIndex = { index ->
-            if (index <= OFF_VALUE) Icons.Outlined.Close else index
-          },
-          labeledIndexes = sliderLabeledIndexes,
-          modifier =
-            Modifier
-              .fillMaxWidth()
-              .padding(vertical = 16.dp),
-          onUpdate = {
-            value = it.roundToInt().coerceIn(OFF_VALUE, MAX_VALUE)
-            onOptionSelected(value.toDownloadOption())
-          },
-        )
+        Row(
+          modifier = Modifier.padding(vertical = 8.dp),
+          horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+          DepthUnit.entries.forEach { candidate ->
+            val selected = unit == candidate
+            FilledTonalButton(
+              onClick = {
+                withHaptic(view) {
+                  unit = candidate
+                  onOptionSelected(currentOption())
+                }
+              },
+              colors =
+                ButtonDefaults.filledTonalButtonColors(
+                  containerColor = if (selected) colorScheme.primary else colorScheme.surfaceContainer,
+                  contentColor = if (selected) colorScheme.onPrimary else colorScheme.onSurfaceVariant,
+                ),
+            ) {
+              Text(
+                text =
+                  when (candidate) {
+                    DepthUnit.CHAPTERS -> stringResource(R.string.settings_download_automatically_unit_chapters)
+                    DepthUnit.TIME -> stringResource(R.string.settings_download_automatically_unit_time)
+                  },
+              )
+            }
+          }
+        }
+
+        when (unit) {
+          DepthUnit.CHAPTERS -> {
+            CommonSlider(
+              internalValue = itemValue,
+              range = OFF_VALUE..MAX_VALUE,
+              formatHeader = { current ->
+                current
+                  .roundToInt()
+                  .coerceIn(OFF_VALUE, MAX_VALUE)
+                  .toDownloadOption()
+                  .makeText(context, libraryType)
+              },
+              formatIndex = { index ->
+                if (index <= OFF_VALUE) Icons.Outlined.Close else index
+              },
+              labeledIndexes = sliderLabeledIndexes,
+              modifier =
+                Modifier
+                  .fillMaxWidth()
+                  .padding(vertical = 16.dp),
+              onUpdate = {
+                itemValue = it.roundToInt().coerceIn(OFF_VALUE, MAX_VALUE)
+                onOptionSelected(itemValue.toDownloadOption())
+              },
+            )
+          }
+
+          DepthUnit.TIME -> {
+            CommonSlider(
+              internalValue = minuteValue,
+              range = OFF_VALUE..MAX_MINUTES,
+              formatHeader = { current ->
+                current
+                  .roundToInt()
+                  .coerceIn(OFF_VALUE, MAX_MINUTES)
+                  .toDurationDownloadOption()
+                  .makeText(context, libraryType)
+              },
+              formatIndex = { index ->
+                if (index <= OFF_VALUE) Icons.Outlined.Close else index
+              },
+              labeledIndexes = minuteSliderLabeledIndexes,
+              modifier =
+                Modifier
+                  .fillMaxWidth()
+                  .padding(vertical = 16.dp),
+              onUpdate = {
+                minuteValue = it.roundToInt().coerceIn(OFF_VALUE, MAX_MINUTES)
+                onOptionSelected(minuteValue.toDurationDownloadOption())
+              },
+            )
+          }
+        }
 
         Row(
           modifier = Modifier.fillMaxWidth(),
           horizontalArrangement = Arrangement.SpaceEvenly,
         ) {
-          presetButtons.forEach { preset ->
+          val presets = if (unit == DepthUnit.CHAPTERS) presetButtons else minutePresetButtons
+          val selectedValue = if (unit == DepthUnit.CHAPTERS) itemValue else minuteValue
+
+          presets.forEach { preset ->
             val selected =
               when (preset) {
-                null -> value <= OFF_VALUE
-                else -> value == preset
+                null -> selectedValue <= OFF_VALUE
+                else -> selectedValue == preset
               }
 
             FilledTonalButton(
               onClick = {
                 withHaptic(view) {
-                  value = preset ?: OFF_VALUE
-                  onOptionSelected(value.toDownloadOption())
+                  when (unit) {
+                    DepthUnit.CHAPTERS -> {
+                      itemValue = preset ?: OFF_VALUE
+                      onOptionSelected(itemValue.toDownloadOption())
+                    }
+
+                    DepthUnit.TIME -> {
+                      minuteValue = preset ?: OFF_VALUE
+                      onOptionSelected(minuteValue.toDurationDownloadOption())
+                    }
+                  }
                 }
               },
               modifier = Modifier.size(56.dp),
@@ -218,12 +306,30 @@ private fun Int.toDownloadOption(): DownloadOption? =
     else -> NumberItemDownloadOption(this)
   }
 
+private fun Int.toDurationDownloadOption(): DownloadOption? =
+  when {
+    this <= OFF_VALUE -> null
+    else -> DurationDownloadOption(this)
+  }
+
+private fun DownloadOption?.toDepthUnit(): DepthUnit =
+  when (this) {
+    is DurationDownloadOption -> DepthUnit.TIME
+    else -> DepthUnit.CHAPTERS
+  }
+
 private fun DownloadOption?.toSliderValue(): Int =
   when (this) {
     null -> OFF_VALUE
     is NumberItemDownloadOption -> itemsNumber.coerceIn(1, MAX_VALUE)
     RemainingItemsDownloadOption, AllItemsDownloadOption -> MAX_VALUE
     else -> 1
+  }
+
+private fun DownloadOption?.toMinuteSliderValue(): Int =
+  when (this) {
+    is DurationDownloadOption -> minutes.coerceIn(1, MAX_MINUTES)
+    else -> OFF_VALUE
   }
 
 private fun DownloadOption?.toSettingsItem(

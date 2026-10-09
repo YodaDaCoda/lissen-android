@@ -123,6 +123,30 @@ class ContentCachingManager
         }
     }
 
+    /**
+     * Drops [droppingChapters] in one batched write, deleting only the files none of
+     * [keepingChapters] still needs (see [calculateFilesToDrop]) - used to trim already-played
+     * auto-cached audio without touching a chapter sharing a file with one still being kept.
+     */
+    suspend fun dropConsumedChapters(
+      item: DetailedItem,
+      droppingChapters: List<PlayingChapter>,
+      keepingChapters: List<PlayingChapter>,
+    ) {
+      if (droppingChapters.isEmpty()) return
+      Timber.d("Dropping consumed chapters for ${item.id}: ${droppingChapters.map { it.id }}")
+
+      bookRepository.cacheBook(book = item, fetchedChapters = emptyList(), droppedChapters = droppingChapters)
+
+      calculateFilesToDrop(item, droppingChapters, keepingChapters).forEach { file ->
+        val binaryContent = properties.provideMediaCachePatch(item.id, file.id)
+
+        if (binaryContent.exists()) {
+          binaryContent.delete()
+        }
+      }
+    }
+
     suspend fun dropCache(itemId: String) {
       Timber.d("Dropping full cache for $itemId")
       bookRepository.removeBook(itemId)
@@ -160,6 +184,8 @@ class ContentCachingManager
     ) = bookRepository.provideCacheState(mediaItemId, chapterId)
 
     fun provideCachedChapterIds(mediaItemId: String) = bookRepository.provideCachedChapterIds(mediaItemId)
+
+    suspend fun fetchTotalCacheSizeBytes(): Long = bookRepository.fetchTotalCacheSizeBytes()
 
     private suspend fun cacheBookMedia(
       bookId: String,

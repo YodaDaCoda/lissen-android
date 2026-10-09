@@ -1,10 +1,13 @@
 package org.grakovne.lissen.viewmodel
 
 import android.content.Context
+import android.content.Intent
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkConstructor
+import io.mockk.unmockkConstructor
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -19,11 +22,13 @@ import org.grakovne.lissen.content.cache.persistent.CachingSessionRegistry
 import org.grakovne.lissen.content.cache.persistent.ContentCachingManager
 import org.grakovne.lissen.content.cache.persistent.ContentCachingProgress
 import org.grakovne.lissen.content.cache.persistent.LocalCacheRepository
+import org.grakovne.lissen.content.cache.persistent.api.AutoCacheOwnershipRepository
 import org.grakovne.lissen.content.cache.temporary.CachedCoverProvider
 import org.grakovne.lissen.content.cache.temporary.SeriesCoverProvider
 import org.grakovne.lissen.domain.BookChapterState
 import org.grakovne.lissen.domain.CacheStatus
 import org.grakovne.lissen.domain.DetailedItem
+import org.grakovne.lissen.domain.NumberItemDownloadOption
 import org.grakovne.lissen.domain.PlayingChapter
 import org.grakovne.lissen.persistence.preferences.DownloadPreferences
 import org.grakovne.lissen.persistence.preferences.LibraryPreferences
@@ -47,6 +52,7 @@ class CachingModelViewTest {
   private val downloadPreferences = mockk<DownloadPreferences>(relaxed = true)
   private val cachedCoverProvider = mockk<CachedCoverProvider>(relaxed = true)
   private val seriesCoverProvider = mockk<SeriesCoverProvider>(relaxed = true)
+  private val autoCacheOwnershipRepository = mockk<AutoCacheOwnershipRepository>(relaxed = true)
 
   private val statusFlow = MutableSharedFlow<Pair<String, CacheState>>(replay = 1)
 
@@ -69,6 +75,7 @@ class CachingModelViewTest {
         downloadPreferences,
         cachedCoverProvider,
         seriesCoverProvider,
+        autoCacheOwnershipRepository,
       )
   }
 
@@ -239,6 +246,31 @@ class CachingModelViewTest {
         val result = viewModel.fetchLatestUpdate("lib-1")
 
         assertEquals(12345L, result)
+      }
+  }
+
+  @Nested
+  inner class Cache {
+    @Test
+    fun `cache clears auto-cache ownership for the requested chapters`() =
+      runTest(testDispatcher) {
+        // cache() builds a real android.content.Intent to dispatch the caching service, which
+        // isn't available in a plain JVM unit test - intercept its construction so that unrelated
+        // framework plumbing doesn't stand in the way of verifying the ownership-clearing wiring.
+        mockkConstructor(Intent::class)
+        try {
+          every { anyConstructed<Intent>().setAction(any()) } returns mockk(relaxed = true)
+          every { anyConstructed<Intent>().putExtra(any<String>(), any<java.io.Serializable>()) } returns mockk(relaxed = true)
+
+          val chapter = playingChapter(id = "ch-1")
+          val item = detailedItem(id = "book-1").copy(chapters = listOf(chapter))
+
+          viewModel.cache(item, currentPosition = 0.0, option = NumberItemDownloadOption(1))
+
+          coVerify { autoCacheOwnershipRepository.clearOwned("book-1", listOf("ch-1")) }
+        } finally {
+          unmockkConstructor(Intent::class)
+        }
       }
   }
 

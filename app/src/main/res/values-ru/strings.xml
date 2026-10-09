@@ -250,8 +250,14 @@
     <string name="playing_item_details_narrator">Чтец</string>
     <string name="playing_item_details_duration">Длительность</string>
     <string name="offline_cache_is_empty">Загруженного контента нет</string>
+    <plurals name="cached_items_total_summary">
+        <item quantity="one">%1$d элемент · %2$s</item>
+        <item quantity="few">%1$d элемента · %2$s</item>
+        <item quantity="many">%1$d элементов · %2$s</item>
+        <item quantity="other">%1$d элемента · %2$s</item>
+    </plurals>
     <string name="settings_screen_cached_items_title">Загруженный контент</string>
-    <string name="settings_screen_cached_items_hint">Управляйте скачанными книгами и подкастами</string>
+    <string name="download_settings_storage_used_of_ceiling">%1$s из %2$s использовано</string>
     <string name="volume_boost_disabled">Отключено</string>
     <string name="volume_boost_title">Усиление громкости</string>
     <string name="settings_screen_equalizer_title">Эквалайзер</string>
@@ -270,9 +276,21 @@
     <string name="settings_screen_crash_report_title">Отчёты о сбоях</string>
     <string name="settings_screen_crash_report_description">Отправлять отчёт при сбое приложения</string>
     <string name="settings_download_automatically_title">Скачивать автоматически</string>
+    <string name="settings_download_automatically_unit_chapters">Главы</string>
+    <string name="settings_download_automatically_unit_time">Время</string>
     <string name="download_settings_title">Загрузки</string>
     <string name="download_settings_description">Скачивание и управление контентом</string>
     <string name="download_settings_network_type_title">Использовать для автоскачивания</string>
+    <string name="download_settings_storage_ceiling_title">Лимит хранилища</string>
+    <string name="download_settings_retention_window_title">Хранить позади текущей позиции</string>
+    <string name="download_settings_retention_rearm_multiple">×%d от продления таймера сна</string>
+    <string name="download_settings_retention_unit_rearm">Повтор таймера</string>
+    <plurals name="download_settings_retention_chapters">
+        <item quantity="one">%d главу</item>
+        <item quantity="few">%d главы</item>
+        <item quantity="many">%d глав</item>
+        <item quantity="other">%d главы</item>
+    </plurals>
     <string name="download_settings_library_type_title">Автоматически скачивать</string>
     <string name="download_settings_library_type_no_items_selected">Типы библиотек не выбраны</string>
     <string name="download_settings_storage_title">Хранилище загруженного контента</string>

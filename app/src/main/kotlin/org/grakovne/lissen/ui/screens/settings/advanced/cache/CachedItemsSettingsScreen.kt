@@ -1,5 +1,6 @@
 package org.grakovne.lissen.ui.screens.settings.advanced.cache
 
+import android.text.format.Formatter
 import android.view.View
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -38,6 +39,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -94,6 +96,8 @@ fun CachedItemsSettingsScreen(
   var pullRefreshing by remember { mutableStateOf(false) }
   val cachedItems = viewModel.libraryPager.collectAsLazyPagingItems()
 
+  LaunchedEffect(Unit) { viewModel.refreshTotalCacheSize() }
+
   fun refreshContent(showPullRefreshing: Boolean) {
     scope.launch {
       if (showPullRefreshing) {
@@ -110,6 +114,7 @@ fun CachedItemsSettingsScreen(
         cachedItems.refresh()
       }
 
+      viewModel.refreshTotalCacheSize()
       pullRefreshing = false
     }
   }
@@ -174,6 +179,8 @@ private fun CachedItemsComposable(
 ) {
   val state = rememberLazyListState()
   val itemsCount by viewModel.totalCount.collectAsState()
+  val totalCacheSizeBytes by viewModel.totalCacheSizeBytes.collectAsState()
+  val context = LocalContext.current
 
   val showScrollbar by remember {
     derivedStateOf {
@@ -197,6 +204,21 @@ private fun CachedItemsComposable(
           totalItems = itemsCount,
         ).fillMaxSize(),
   ) {
+    item {
+      Text(
+        text =
+          context.resources.getQuantityString(
+            R.plurals.cached_items_total_summary,
+            itemsCount,
+            itemsCount,
+            Formatter.formatShortFileSize(context, totalCacheSizeBytes),
+          ),
+        style = typography.bodyMedium,
+        color = colorScheme.onSurfaceVariant,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+      )
+    }
+
     items(count = cachedItems.itemCount, key = { index -> cachedItems[index]?.id ?: "cached_library_item_$index" }) {
       val item = cachedItems[it] ?: return@items
       CachedItemComposable(
@@ -298,6 +320,16 @@ private fun CachedItemComposable(
                 overflow = TextOverflow.Ellipsis,
               )
             }
+
+          Text(
+            modifier = Modifier.padding(vertical = 2.dp),
+            text = Formatter.formatShortFileSize(context, book.files.mapNotNull { it.size }.sum()),
+            style =
+              typography.bodySmall.copy(
+                color = colorScheme.onBackground.copy(alpha = 0.6f),
+              ),
+            maxLines = 1,
+          )
         }
 
         Spacer(Modifier.width(spacing))

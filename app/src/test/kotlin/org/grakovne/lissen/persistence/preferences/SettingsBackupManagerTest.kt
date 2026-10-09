@@ -20,6 +20,8 @@ import org.grakovne.lissen.domain.EqualizerSettings
 import org.grakovne.lissen.domain.LibraryType
 import org.grakovne.lissen.domain.RearmExtensionMode
 import org.grakovne.lissen.domain.ResumeRewindLongMode
+import org.grakovne.lissen.domain.RetentionUnit
+import org.grakovne.lissen.domain.RetentionWindow
 import org.grakovne.lissen.domain.RewindOnPauseSettings
 import org.grakovne.lissen.domain.SeekTime
 import org.grakovne.lissen.domain.SleepTimerSettings
@@ -136,6 +138,17 @@ class SettingsBackupManagerTest {
       assertEquals("WIFI_OR_CELLULAR", backup.autoDownloadNetworkType)
       assertTrue(backup.autoDownloadDelayed == true)
       assertEquals(10, backup.downloadChaptersCount)
+    }
+
+    @Test
+    fun `maps auto-cache storage ceiling and retention window`() {
+      every { sharedPreferences.getLong("auto_download_storage_ceiling_bytes", any()) } returns 2_000_000_000L
+      every { sharedPreferences.getString("auto_cache_retention_window", null) } returns """{"unit":"MINUTES","amount":15}"""
+
+      val backup = preferences.exportSettings()
+
+      assertEquals(2_000_000_000L, backup.autoDownloadStorageCeilingBytes)
+      assertEquals(RetentionWindow(RetentionUnit.MINUTES, 15), backup.autoCacheRetentionWindow)
     }
 
     @Test

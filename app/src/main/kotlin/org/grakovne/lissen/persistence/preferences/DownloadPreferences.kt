@@ -5,6 +5,7 @@ import org.grakovne.lissen.common.NetworkTypeAutoCache
 import org.grakovne.lissen.common.moshi
 import org.grakovne.lissen.domain.DownloadOption
 import org.grakovne.lissen.domain.LibraryType
+import org.grakovne.lissen.domain.RetentionWindow
 import org.grakovne.lissen.domain.StoragePath
 import org.grakovne.lissen.domain.makeDownloadOption
 import org.grakovne.lissen.domain.makeId
@@ -69,6 +70,22 @@ class DownloadPreferences
         moshi.adapter(StoragePath::class.java).toJson(storagePath),
       )
 
+    fun getAutoDownloadStorageCeilingBytes(): Long = store.getLong(KEY_AUTO_DOWNLOAD_STORAGE_CEILING_BYTES, DEFAULT_STORAGE_CEILING_BYTES)
+
+    fun saveAutoDownloadStorageCeilingBytes(bytes: Long) = store.putLong(KEY_AUTO_DOWNLOAD_STORAGE_CEILING_BYTES, bytes)
+
+    fun getAutoCacheRetentionWindow(): RetentionWindow =
+      store
+        .getString(KEY_AUTO_CACHE_RETENTION_WINDOW)
+        ?.let { runCatching { moshi.adapter(RetentionWindow::class.java).fromJson(it) }.getOrNull() }
+        ?: RetentionWindow.DEFAULT
+
+    fun saveAutoCacheRetentionWindow(retentionWindow: RetentionWindow) =
+      store.putString(
+        KEY_AUTO_CACHE_RETENTION_WINDOW,
+        moshi.adapter(RetentionWindow::class.java).toJson(retentionWindow),
+      )
+
     companion object {
       private const val KEY_AUTO_DOWNLOAD_DELAYED = "auto_download_delayed"
       private const val KEY_PREFERRED_AUTO_DOWNLOAD = "preferred_auto_download"
@@ -76,6 +93,9 @@ class DownloadPreferences
       private const val KEY_PREFERRED_AUTO_DOWNLOAD_LIBRARY_TYPE = "preferred_auto_download_library_type"
       private const val KEY_DOWNLOAD_CHAPTERS_COUNT = "download_chapters_count"
       private const val KEY_DOWNLOAD_STORAGE_PATH = "download_storage_path"
+      private const val KEY_AUTO_DOWNLOAD_STORAGE_CEILING_BYTES = "auto_download_storage_ceiling_bytes"
+      private const val KEY_AUTO_CACHE_RETENTION_WINDOW = "auto_cache_retention_window"
       private const val DEFAULT_DOWNLOAD_CHAPTERS_COUNT = 5
+      private const val DEFAULT_STORAGE_CEILING_BYTES = 1_000_000_000L
     }
   }

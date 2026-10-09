@@ -14,19 +14,27 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.grakovne.lissen.common.NetworkService
 import org.grakovne.lissen.common.NetworkTypeAutoCache
 import org.grakovne.lissen.common.RunningComponent
 import org.grakovne.lissen.content.LissenMediaProvider
+import org.grakovne.lissen.content.cache.common.findRelatedFiles
+import org.grakovne.lissen.content.cache.persistent.api.AutoCacheOwnershipRepository
+import org.grakovne.lissen.domain.CacheStatus
 import org.grakovne.lissen.domain.ContentCachingTask
 import org.grakovne.lissen.domain.DetailedItem
 import org.grakovne.lissen.domain.NetworkType
+import org.grakovne.lissen.domain.PlayingChapter
 import org.grakovne.lissen.persistence.preferences.DownloadPreferences
 import org.grakovne.lissen.persistence.preferences.LibraryPreferences
+import org.grakovne.lissen.persistence.preferences.PlaybackPreferences
 import org.grakovne.lissen.playback.MediaRepository
+import org.grakovne.lissen.playback.extensionSecondsFor
 import timber.log.Timber
 import java.io.Serializable
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -39,10 +47,19 @@ class ContentAutoCachingService
     private val mediaRepository: MediaRepository,
     private val mediaProvider: LissenMediaProvider,
     private val downloadPreferences: DownloadPreferences,
+    private val playbackPreferences: PlaybackPreferences,
     private val libraryPreferences: LibraryPreferences,
     private val networkService: NetworkService,
+    private val contentCachingManager: ContentCachingManager,
+    private val ownershipRepository: AutoCacheOwnershipRepository,
+    private val contentCachingProgress: ContentCachingProgress,
   ) : RunningComponent {
     private var delayedJob: Job? = null
+    private var lastBookId: String? = null
+
+    /** Chapters a just-dispatched caching task will newly fetch, marked owned once it completes. */
+    private val pendingOwnership = ConcurrentHashMap<String, List<String>>()
+
     private val scope =
       CoroutineScope(
         SupervisorJob() + Dispatchers.IO +
@@ -53,6 +70,22 @@ class ContentAutoCachingService
 
     override fun onCreate() {
       scope.launch {
+        contentCachingProgress.statusFlow.collect { (itemId, state) ->
+          when (state.status) {
+            CacheStatus.Completed -> {
+              pendingOwnership.remove(itemId)?.let { chapterIds -> ownershipRepository.markOwned(itemId, chapterIds) }
+            }
+
+            CacheStatus.Error -> {
+              pendingOwnership.remove(itemId)
+            }
+
+            else -> {}
+          }
+        }
+      }
+
+      scope.launch {
         combine(
           mediaRepository.playingBook,
           mediaRepository.isPlaying,
@@ -62,10 +95,64 @@ class ContentAutoCachingService
         }.distinctUntilChanged { old, new ->
           old.first?.id == new.first?.id && old.second == new.second && old.third == new.third
         }.collectLatest { (playingItem, isPlaying, _) ->
+          if (playingItem?.id != lastBookId) {
+            lastBookId?.let { oldBookId -> scope.launch { reclaim(oldBookId) } }
+            lastBookId = playingItem?.id
+          } else {
+            playingItem?.let { trimConsumed(it) }
+          }
+
           delayedJob?.cancel()
           delayedJob = updatePlaybackCache(playingItem, isPlaying)
         }
       }
+    }
+
+    /**
+     * Releases a book's auto-cache-owned audio once it's no longer the active book. Whole-book
+     * delete only when nothing manual is present (owned set == cached set) - otherwise only the
+     * owned subset, via [ContentCachingManager.dropConsumedChapters], so a book that's part
+     * auto-cache, part manual download never loses the manual part.
+     */
+    private suspend fun reclaim(bookId: String) {
+      val owned = ownershipRepository.fetchOwnedChapterIds(bookId).toSet()
+      if (owned.isEmpty()) return
+
+      val cached = contentCachingManager.provideCachedChapterIds(bookId).first().toSet()
+
+      if (isFullyAutoOwned(owned, cached)) {
+        Timber.d("Reclaiming fully auto-owned cache for $bookId")
+        contentCachingManager.dropCache(bookId)
+      } else {
+        val book = mediaProvider.fetchBook(bookId).fold(onSuccess = { it }, onFailure = { null }) ?: return
+        val ownedChapters = book.chapters.filter { it.id in owned }
+        val keptChapters = book.chapters.filterNot { it.id in owned }
+        Timber.d("Reclaiming partially auto-owned cache for $bookId: ${ownedChapters.size} of ${book.chapters.size} chapters")
+        contentCachingManager.dropConsumedChapters(book, droppingChapters = ownedChapters, keepingChapters = keptChapters)
+      }
+
+      ownershipRepository.clearAllOwned(bookId)
+    }
+
+    private suspend fun trimConsumed(book: DetailedItem) {
+      val owned = ownershipRepository.fetchOwnedChapterIds(book.id).toSet()
+      if (owned.isEmpty()) return
+
+      val position = mediaRepository.totalPosition.value
+      val retention = downloadPreferences.getAutoCacheRetentionWindow()
+      val rearmSeconds =
+        mediaRepository.timerOption.value
+          ?.let { extensionSecondsFor(it, playbackPreferences.getSleepTimerSettings()) }
+          ?: playbackPreferences.getSleepTimerSettings().rearmExtensionSeconds
+
+      val toTrim = calculateChaptersToTrim(book.chapters, owned, position, retention, rearmSeconds.toDouble())
+      if (toTrim.isEmpty()) return
+
+      val trimIds = toTrim.map { it.id }.toSet()
+      val keeping = book.chapters.filterNot { it.id in trimIds }
+
+      contentCachingManager.dropConsumedChapters(book, droppingChapters = toTrim, keepingChapters = keeping)
+      ownershipRepository.clearOwned(book.id, toTrim.map { it.id })
     }
 
     private suspend fun updatePlaybackCache(
@@ -108,6 +195,19 @@ class ContentAutoCachingService
       if (cacheAvailable.not()) return null
 
       if (downloadPreferences.getAutoDownloadDelayed().not() || delayed) {
+        val requestedChapters = calculateRequestedChapters(playingMediaItem, playbackCacheOption, currentTotalPosition)
+        val existingChapterIds = contentCachingManager.provideCachedChapterIds(playingMediaItem.id).first().toSet()
+        val missingChapters = requestedChapters.filterNot { it.id in existingChapterIds }
+
+        if (missingChapters.isEmpty()) return null
+
+        if (exceedsStorageCeiling(playingMediaItem, missingChapters)) {
+          Timber.d("Auto-cache for ${playingMediaItem.id} skipped this cycle: would exceed the storage ceiling")
+          return null
+        }
+
+        pendingOwnership[playingMediaItem.id] = missingChapters.map { it.id }
+
         val task =
           ContentCachingTask(
             itemId = playingMediaItem.id,
@@ -126,6 +226,7 @@ class ContentAutoCachingService
 
         if (ContentCachingService.requestStart(context, intent).not()) {
           Timber.w("Caching service is unavailable, skipping auto-cache for ${playingMediaItem.id}")
+          pendingOwnership.remove(playingMediaItem.id)
         }
         return null
       }
@@ -141,6 +242,30 @@ class ContentAutoCachingService
         updatePlaybackCache(currentPlaying, isPlaying, delayed = true)
       }
     }
+
+    /** A conservative, book-scoped estimate: this book's already-owned footprint plus what's newly requested. */
+    private suspend fun exceedsStorageCeiling(
+      book: DetailedItem,
+      missingChapters: List<PlayingChapter>,
+    ): Boolean {
+      val ceiling = downloadPreferences.getAutoDownloadStorageCeilingBytes()
+      val ownedIds = ownershipRepository.fetchOwnedChapterIds(book.id).toSet()
+      val ownedChapters = book.chapters.filter { it.id in ownedIds }
+
+      val ownedBytes = chaptersSizeBytes(book, ownedChapters)
+      val addedBytes = chaptersSizeBytes(book, missingChapters)
+
+      return ownedBytes + addedBytes > ceiling
+    }
+
+    private fun chaptersSizeBytes(
+      book: DetailedItem,
+      chapters: List<PlayingChapter>,
+    ): Long =
+      chapters
+        .flatMap { findRelatedFiles(it, book.files) }
+        .distinctBy { it.id }
+        .sumOf { it.size ?: 0L }
 
     private fun validNetworkType(
       current: NetworkType,
@@ -159,3 +284,9 @@ class ContentAutoCachingService
       private const val DELAY_TIME: Long = 30_000
     }
   }
+
+/** Whether every currently-cached chapter for a book is one auto-cache itself added. */
+internal fun isFullyAutoOwned(
+  owned: Set<String>,
+  cached: Set<String>,
+): Boolean = owned == cached

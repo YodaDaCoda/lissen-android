@@ -42,6 +42,8 @@ class SettingsBackupManager
         autoDownloadLibraryTypes = download.getAutoDownloadLibraryTypes().map { it.name },
         autoDownloadDelayed = download.getAutoDownloadDelayed(),
         downloadChaptersCount = download.getDownloadChaptersCount(),
+        autoDownloadStorageCeilingBytes = download.getAutoDownloadStorageCeilingBytes(),
+        autoCacheRetentionWindow = download.getAutoCacheRetentionWindow(),
         defaultSleepTimerType = timerDto?.type,
         defaultSleepTimerMinutes = timerDto?.minutes,
         sleepTimerSettings = playback.getSleepTimerSettings(),
@@ -91,6 +93,8 @@ class SettingsBackupManager
 
       backup.autoDownloadDelayed?.let { download.saveAutoDownloadDelayed(it) }
       backup.downloadChaptersCount?.let { download.saveDownloadChaptersCount(it) }
+      backup.autoDownloadStorageCeilingBytes?.let { download.saveAutoDownloadStorageCeilingBytes(it) }
+      backup.autoCacheRetentionWindow?.let { download.saveAutoCacheRetentionWindow(it) }
 
       if (backup.defaultSleepTimerType != null) {
         val option = TimerOptionDto(type = backup.defaultSleepTimerType, minutes = backup.defaultSleepTimerMinutes).toTimerOption()

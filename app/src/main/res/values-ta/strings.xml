@@ -107,7 +107,6 @@
     <string name="settings_screen_library_ordering_author_option">நூலாசிரியர்</string>
     <string name="settings_screen_library_ordering_creation_date_option">உருவாக்கிய தேதி</string>
     <string name="settings_screen_seek_time_title">அமைப்புகளைத் தேடுங்கள்</string>
-    <string name="settings_screen_cached_items_hint">சேமித்த உள்ளடக்கத்தை நிர்வகிக்கவும்</string>
     <string name="player_screen_chapter_list_navigation_podcast">அத்தியாயங்கள்</string>
     <string name="settings_screen_connection_type">இணைப்பு வகை</string>
     <string name="settings_screen_connection_local">உள்ளக பிணையம்</string>

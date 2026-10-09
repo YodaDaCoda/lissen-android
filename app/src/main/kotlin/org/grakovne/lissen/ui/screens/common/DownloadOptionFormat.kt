@@ -5,6 +5,7 @@ import org.grakovne.lissen.R
 import org.grakovne.lissen.domain.AllItemsDownloadOption
 import org.grakovne.lissen.domain.CurrentItemDownloadOption
 import org.grakovne.lissen.domain.DownloadOption
+import org.grakovne.lissen.domain.DurationDownloadOption
 import org.grakovne.lissen.domain.LibraryType
 import org.grakovne.lissen.domain.NumberItemDownloadOption
 import org.grakovne.lissen.domain.RemainingItemsDownloadOption
@@ -57,5 +58,10 @@ fun DownloadOption?.makeText(
           )
         }
       }
+    }
+
+    is DurationDownloadOption -> {
+      // same wording regardless of library type - "4h 10m" needs no book/podcast noun
+      formatMinutesDuration(context, minutes)
     }
   }

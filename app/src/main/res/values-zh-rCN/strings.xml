@@ -98,7 +98,6 @@
     <string name="forward_interval">快进间隔</string>
     <string name="offline_cache_is_empty">暂无离线内容</string>
     <string name="settings_screen_cached_items_title">下载</string>
-    <string name="settings_screen_cached_items_hint">管理保存的内容</string>
     <string name="notification_content_caching_channel">内容缓存</string>
     <string name="notification_content_caching_title">正在缓存内容</string>
     <string name="notification_content_caching_error_title">缓存失败</string>

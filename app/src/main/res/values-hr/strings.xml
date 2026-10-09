@@ -112,7 +112,6 @@
     <string name="continue_playback_shortcut_description">Nastavi slušati</string>
     <string name="offline_cache_is_empty">Nema spremljenog sadržaja</string>
     <string name="settings_screen_cached_items_title">Preuzimanja</string>
-    <string name="settings_screen_cached_items_hint">Upravljaj spremljenim sadržajem</string>
     <string name="settings_screen_connection_type">Vrsta veze</string>
     <string name="settings_screen_connection_local">Lokalna mreža</string>
     <string name="settings_screen_connection_external">Vanjska mreža</string>

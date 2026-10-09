@@ -100,7 +100,6 @@
     <string name="continue_playback_shortcut_description">Fortsett å lytte</string>
     <string name="offline_cache_is_empty">Ingen lagret innhold ennå</string>
     <string name="settings_screen_cached_items_title">Nedlastinger</string>
-    <string name="settings_screen_cached_items_hint">Administrer lagret innhold</string>
     <string name="app_crach_toast">Beklager at appen krasjet\nLoggfilene er sendt til analyse</string>
     <string name="timer_option_disabled">Funksjonshemmet</string>
     <string name="timer_option_after_current_chapter">Når kapitlet slutter</string>

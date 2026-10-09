@@ -218,6 +218,9 @@ interface CachedBookDao {
   @Query("SELECT COUNT(*) FROM detailed_books")
   suspend fun fetchCachedItemsCount(): Int
 
+  @Query("SELECT COALESCE(SUM(size), 0) FROM book_files")
+  suspend fun fetchTotalCacheSizeBytes(): Long
+
   @Query(
     """
     SELECT COUNT(*) > 0

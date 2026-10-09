@@ -23,6 +23,8 @@ import org.grakovne.lissen.content.cache.persistent.ContentCachingManager
 import org.grakovne.lissen.content.cache.persistent.ContentCachingProgress
 import org.grakovne.lissen.content.cache.persistent.ContentCachingService
 import org.grakovne.lissen.content.cache.persistent.LocalCacheRepository
+import org.grakovne.lissen.content.cache.persistent.api.AutoCacheOwnershipRepository
+import org.grakovne.lissen.content.cache.persistent.calculateRequestedChapters
 import org.grakovne.lissen.content.cache.temporary.CachedCoverProvider
 import org.grakovne.lissen.content.cache.temporary.SeriesCoverProvider
 import org.grakovne.lissen.domain.CacheStatus
@@ -50,9 +52,13 @@ class CachingModelView
     private val downloadPreferences: DownloadPreferences,
     private val cachedCoverProvider: CachedCoverProvider,
     private val seriesCoverProvider: SeriesCoverProvider,
+    private val autoCacheOwnershipRepository: AutoCacheOwnershipRepository,
   ) : ViewModel() {
     private val _totalCount = MutableStateFlow(0)
     val totalCount: StateFlow<Int> = _totalCount.asStateFlow()
+
+    private val _totalCacheSizeBytes = MutableStateFlow(0L)
+    val totalCacheSizeBytes: StateFlow<Long> = _totalCacheSizeBytes.asStateFlow()
 
     val forceCache = libraryPreferences.forceCacheFlow
 
@@ -99,6 +105,14 @@ class CachingModelView
       option: DownloadOption,
     ) {
       Timber.d("User action: cache ${mediaItem.id}, option=$option, position=${currentPosition.toInt()}s")
+
+      viewModelScope.launch {
+        // a chapter the user explicitly asked for is never auto-cache's to reclaim again, whether
+        // or not auto-cache got there first
+        val targetChapterIds = calculateRequestedChapters(mediaItem, option, currentPosition).map { it.id }
+        autoCacheOwnershipRepository.clearOwned(mediaItem.id, targetChapterIds)
+      }
+
       val task =
         ContentCachingTask(
           itemId = mediaItem.id,
@@ -117,6 +131,12 @@ class CachingModelView
         viewModelScope.launch {
           contentCachingProgress.emit(task.itemId, CacheState(CacheStatus.Error))
         }
+      }
+    }
+
+    fun refreshTotalCacheSize() {
+      viewModelScope.launch {
+        _totalCacheSizeBytes.value = contentCachingManager.fetchTotalCacheSizeBytes()
       }
     }
 

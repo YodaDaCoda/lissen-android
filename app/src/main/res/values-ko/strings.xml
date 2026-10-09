@@ -106,7 +106,6 @@
     <string name="continue_playback_shortcut_description">이전에 듣던 부분을 이어서 재생합니다</string>
     <string name="offline_cache_is_empty">저장된 콘텐츠가 없습니다</string>
     <string name="settings_screen_cached_items_title">다운로드</string>
-    <string name="settings_screen_cached_items_hint">저장된 콘텐츠 관리</string>
     <string name="player_screen_chapter_list_navigation_podcast">에피소드</string>
     <string name="settings_screen_connection_type">연결 종류</string>
     <string name="settings_screen_connection_local">로컬 네트워크</string>

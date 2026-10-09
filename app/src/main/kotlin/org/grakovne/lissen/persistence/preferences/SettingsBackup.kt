@@ -4,6 +4,7 @@ import androidx.annotation.Keep
 import com.squareup.moshi.JsonClass
 import org.grakovne.lissen.common.LibraryOrderingConfiguration
 import org.grakovne.lissen.domain.EqualizerSettings
+import org.grakovne.lissen.domain.RetentionWindow
 import org.grakovne.lissen.domain.RewindOnPauseSettings
 import org.grakovne.lissen.domain.SeekTime
 import org.grakovne.lissen.domain.SleepTimerSettings
@@ -31,6 +32,8 @@ data class SettingsBackup(
   val autoDownloadLibraryTypes: List<String>? = null,
   val autoDownloadDelayed: Boolean? = null,
   val downloadChaptersCount: Int? = null,
+  val autoDownloadStorageCeilingBytes: Long? = null,
+  val autoCacheRetentionWindow: RetentionWindow? = null,
   val defaultSleepTimerType: String? = null,
   val defaultSleepTimerMinutes: Int? = null,
   val sleepTimerSettings: SleepTimerSettings? = null,

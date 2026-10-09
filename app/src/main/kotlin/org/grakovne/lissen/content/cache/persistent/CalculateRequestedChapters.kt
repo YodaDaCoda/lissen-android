@@ -4,6 +4,7 @@ import org.grakovne.lissen.domain.AllItemsDownloadOption
 import org.grakovne.lissen.domain.CurrentItemDownloadOption
 import org.grakovne.lissen.domain.DetailedItem
 import org.grakovne.lissen.domain.DownloadOption
+import org.grakovne.lissen.domain.DurationDownloadOption
 import org.grakovne.lissen.domain.NumberItemDownloadOption
 import org.grakovne.lissen.domain.PlayingChapter
 import org.grakovne.lissen.domain.RemainingItemsDownloadOption
@@ -30,6 +31,11 @@ fun calculateRequestedChapters(
         chapterIndex.coerceAtLeast(0),
         (chapterIndex + option.itemsNumber).coerceIn(chapterIndex..book.chapters.size),
       )
+    }
+
+    is DurationDownloadOption -> {
+      val cutoff = currentTotalPosition + option.minutes * 60.0
+      book.chapters.drop(chapterIndex.coerceAtLeast(0)).takeWhile { it.start < cutoff }
     }
 
     RemainingItemsDownloadOption -> {

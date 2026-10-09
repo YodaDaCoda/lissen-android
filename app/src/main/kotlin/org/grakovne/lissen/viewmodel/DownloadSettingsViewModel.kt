@@ -18,6 +18,7 @@ import org.grakovne.lissen.content.cache.persistent.ContentCachingManager
 import org.grakovne.lissen.content.cache.persistent.OfflineBookStorageProperties
 import org.grakovne.lissen.domain.DownloadOption
 import org.grakovne.lissen.domain.LibraryType
+import org.grakovne.lissen.domain.RetentionWindow
 import org.grakovne.lissen.domain.StoragePath
 import org.grakovne.lissen.persistence.preferences.DownloadPreferences
 import org.grakovne.lissen.playback.MediaRepository
@@ -47,6 +48,12 @@ class DownloadSettingsViewModel
     private val _autoDownloadDelayed = MutableStateFlow(download.getAutoDownloadDelayed())
     val autoDownloadDelayed: StateFlow<Boolean> = _autoDownloadDelayed.asStateFlow()
 
+    private val _autoDownloadStorageCeilingBytes = MutableStateFlow(download.getAutoDownloadStorageCeilingBytes())
+    val autoDownloadStorageCeilingBytes: StateFlow<Long> = _autoDownloadStorageCeilingBytes.asStateFlow()
+
+    private val _autoCacheRetentionWindow = MutableStateFlow(download.getAutoCacheRetentionWindow())
+    val autoCacheRetentionWindow: StateFlow<RetentionWindow> = _autoCacheRetentionWindow.asStateFlow()
+
     private val _downloadStorage = MutableStateFlow<StoragePath?>(null)
     val downloadStorage: StateFlow<StoragePath?> = _downloadStorage.asStateFlow()
 
@@ -59,10 +66,19 @@ class DownloadSettingsViewModel
     private val _downloadStorageClearing = MutableStateFlow(false)
     val downloadStorageClearing: StateFlow<Boolean> = _downloadStorageClearing.asStateFlow()
 
+    private val _totalCacheSizeBytes = MutableStateFlow(0L)
+    val totalCacheSizeBytes: StateFlow<Long> = _totalCacheSizeBytes.asStateFlow()
+
     fun fetchDownloadStorages() {
       viewModelScope.launch(Dispatchers.IO) {
         _downloadStorage.value = offlineBookStorageProperties.provideActiveStoragePath()
         _availableStorages.value = offlineBookStorageProperties.provideAvailableStorages()
+      }
+    }
+
+    fun refreshTotalCacheSize() {
+      viewModelScope.launch(Dispatchers.IO) {
+        _totalCacheSizeBytes.value = contentCachingManager.fetchTotalCacheSizeBytes()
       }
     }
 
@@ -96,6 +112,18 @@ class DownloadSettingsViewModel
       Timber.d("User action: preferAutoDownloadDelayed $value")
       _autoDownloadDelayed.value = value
       download.saveAutoDownloadDelayed(value)
+    }
+
+    fun preferAutoDownloadStorageCeilingBytes(bytes: Long) {
+      Timber.d("User action: preferAutoDownloadStorageCeilingBytes $bytes")
+      _autoDownloadStorageCeilingBytes.value = bytes
+      download.saveAutoDownloadStorageCeilingBytes(bytes)
+    }
+
+    fun preferAutoCacheRetentionWindow(retentionWindow: RetentionWindow) {
+      Timber.d("User action: preferAutoCacheRetentionWindow $retentionWindow")
+      _autoCacheRetentionWindow.value = retentionWindow
+      download.saveAutoCacheRetentionWindow(retentionWindow)
     }
 
     suspend fun preferDownloadStorage(storagePath: StoragePath): Boolean {

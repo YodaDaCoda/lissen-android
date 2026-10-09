@@ -236,8 +236,12 @@
     <string name="continue_playback_shortcut_title">Continue</string>
     <string name="continue_playback_shortcut_description">Continue listening</string>
     <string name="offline_cache_is_empty">No saved content yet</string>
+    <plurals name="cached_items_total_summary">
+        <item quantity="one">%1$d item · %2$s</item>
+        <item quantity="other">%1$d items · %2$s</item>
+    </plurals>
     <string name="settings_screen_cached_items_title">Downloads</string>
-    <string name="settings_screen_cached_items_hint">Manage saved content</string>
+    <string name="download_settings_storage_used_of_ceiling">%1$s of %2$s used</string>
     <string name="volume_boost_disabled">Disabled</string>
     <string name="volume_boost_title">Boosted volume</string>
     <string name="settings_screen_equalizer_title">Equalizer</string>
@@ -261,9 +265,19 @@
     <string name="settings_screen_audio_focus_loss_policy_option_pause">Pause</string>
     <string name="settings_screen_audio_focus_loss_policy_option_lower_volume">Lower volume</string>
     <string name="settings_download_automatically_title">Download automatically</string>
+    <string name="settings_download_automatically_unit_chapters">Chapters</string>
+    <string name="settings_download_automatically_unit_time">Time</string>
     <string name="download_settings_title">Downloads</string>
     <string name="download_settings_description">Define downloads and manage content</string>
     <string name="download_settings_network_type_title">Use for automatic downloads</string>
+    <string name="download_settings_storage_ceiling_title">Storage ceiling</string>
+    <string name="download_settings_retention_window_title">Retain behind playhead</string>
+    <string name="download_settings_retention_rearm_multiple">×%d sleep timer re-arm amount</string>
+    <string name="download_settings_retention_unit_rearm">Re-arm</string>
+    <plurals name="download_settings_retention_chapters">
+        <item quantity="one">%d chapter</item>
+        <item quantity="other">%d chapters</item>
+    </plurals>
     <string name="download_settings_library_type_title">Download automatically</string>
     <string name="download_settings_library_type_no_items_selected">No types defined</string>
     <string name="download_settings_storage_title">Storage location</string>
