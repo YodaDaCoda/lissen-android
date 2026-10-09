@@ -3,14 +3,6 @@ package org.grakovne.lissen
 import android.app.Application
 import android.content.Context
 import dagger.hilt.android.HiltAndroidApp
-import org.acra.ACRA
-import org.acra.ReportField
-import org.acra.config.httpSender
-import org.acra.config.toast
-import org.acra.data.StringFormat
-import org.acra.ktx.initAcra
-import org.acra.security.TLS
-import org.acra.sender.HttpSender
 import org.grakovne.lissen.common.RunningComponent
 import org.grakovne.lissen.logging.LissenLogProvider
 import org.grakovne.lissen.persistence.preferences.DiagnosticsPreferences
@@ -27,14 +19,6 @@ class LissenApplication : Application() {
 
   @Inject
   lateinit var preferences: DiagnosticsPreferences
-
-  override fun attachBaseContext(base: Context) {
-    super.attachBaseContext(base)
-
-    if (BuildConfig.DEBUG.not()) {
-      initCrashReporting()
-    }
-  }
 
   override fun onCreate() {
     super.onCreate()
@@ -65,38 +49,6 @@ class LissenApplication : Application() {
       } catch (ex: Exception) {
         Timber.e("Unable to plant file logging tree due to: ${ex.message}")
       }
-    }
-  }
-
-  private fun initCrashReporting() {
-    initAcra {
-      ACRA.DEV_LOGGING = true
-      sharedPreferencesName = "secure_prefs"
-
-      buildConfigClass = BuildConfig::class.java
-      reportFormat = StringFormat.JSON
-
-      httpSender {
-        uri = "https://acrarium.grakovne.org/report"
-        basicAuthLogin = "M44DCNA0c1ikg3PA"
-        basicAuthPassword = "AbEG6y3mIwp5Yn9K"
-        httpMethod = HttpSender.Method.POST
-        dropReportsOnTimeout = false
-        tlsProtocols = listOf(TLS.V1_3, TLS.V1_2)
-      }
-
-      toast {
-        text = getString(R.string.app_crach_toast)
-      }
-
-      reportContent =
-        listOf(
-          ReportField.APP_VERSION_NAME,
-          ReportField.APP_VERSION_CODE,
-          ReportField.ANDROID_VERSION,
-          ReportField.PHONE_MODEL,
-          ReportField.STACK_TRACE,
-        )
     }
   }
 
