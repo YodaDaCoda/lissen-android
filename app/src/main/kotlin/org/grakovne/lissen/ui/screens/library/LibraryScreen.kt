@@ -130,6 +130,7 @@ fun LibraryScreen(
   val searchRequested by libraryViewModel.searchRequested.collectAsState()
   val searchToken by libraryViewModel.searchToken.collectAsState()
   val preparingError by playerViewModel.preparingError.collectAsState()
+  val playbackFailure by playerViewModel.playbackFailure.collectAsState()
 
   val preferredLibrary by settingsViewModel.preferredLibrary.collectAsState()
   val libraries by settingsViewModel.libraries.collectAsState()
@@ -197,8 +198,11 @@ fun LibraryScreen(
     }
   }
 
-  LaunchedEffect(preparingError) {
-    if (preparingError && cachingModelView.localCacheUsing().not()) {
+  LaunchedEffect(preparingError, playbackFailure) {
+    // in force-cache mode a failed preparation only means the book is not downloaded;
+    // it stays selected so playback recovers when the mode changes back. A network failure keeps
+    // it too, so the player can still be opened to show the error and retry once back online
+    if (preparingError && cachingModelView.localCacheUsing().not() && playbackFailure?.network != true) {
       playerViewModel.clearPlayingBook()
     }
   }

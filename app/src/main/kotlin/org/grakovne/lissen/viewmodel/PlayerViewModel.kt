@@ -24,6 +24,7 @@ import org.grakovne.lissen.persistence.preferences.LibraryPreferences
 import org.grakovne.lissen.persistence.preferences.PlaybackPreferences
 import org.grakovne.lissen.persistence.preferences.SessionPreferences
 import org.grakovne.lissen.playback.MediaRepository
+import org.grakovne.lissen.playback.PlaybackFailure
 import org.grakovne.lissen.playback.autoskip.AutoSkipConfiguration
 import org.grakovne.lissen.playback.autoskip.AutoSkipPreferences
 import timber.log.Timber
@@ -75,6 +76,7 @@ class PlayerViewModel
     val isPlaybackReady: StateFlow<Boolean> = mediaRepository.isPlaybackReady
     val playbackSpeed: StateFlow<Float> = mediaRepository.playbackSpeed
     val preparingError: StateFlow<Boolean> = mediaRepository.mediaPreparingError
+    val playbackFailure: StateFlow<PlaybackFailure?> = mediaRepository.playbackFailure
 
     private val _searchRequested = MutableStateFlow(false)
     val searchRequested: StateFlow<Boolean> = _searchRequested.asStateFlow()

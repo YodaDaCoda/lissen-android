@@ -23,6 +23,13 @@
     <string name="a11y_position_of">%1$s of %2$s</string>
     <string name="a11y_buffering">Buffering</string>
     <string name="a11y_playback_error">Playback error</string>
+    <string name="playback_failure_network_title">Can\'t reach the server</string>
+    <string name="playback_failure_network_hint">Check your internet connection, then press Retry.</string>
+    <string name="playback_failure_unknown_title">Unknown playback error</string>
+    <string name="playback_failure_unknown_hint">Press Retry. If it keeps happening, restart the app.</string>
+    <string name="playback_failure_retrying">Trying again…</string>
+    <string name="playback_failure_retry">Retry</string>
+    <string name="playback_failure_copy_code">Copy error code</string>
     <plurals name="a11y_hours">
         <item quantity="one">%d hour</item>
         <item quantity="other">%d hours</item>

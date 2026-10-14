@@ -5,6 +5,8 @@ import androidx.media3.common.Player
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkStatic
+import io.mockk.unmockkStatic
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -32,6 +34,7 @@ import org.grakovne.lissen.playback.service.DefaultTimerActivator
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Nested
@@ -404,6 +407,44 @@ class MediaRepositoryTest {
 
   @Nested
   inner class PlayerErrors {
+    // the real constructor stamps the error with the Android clock, which a unit test does not have
+    private fun playbackException(code: Int): PlaybackException {
+      mockkStatic(android.os.SystemClock::class)
+      every { android.os.SystemClock.elapsedRealtime() } returns 0L
+      return PlaybackException("test", null, code).also { unmockkStatic(android.os.SystemClock::class) }
+    }
+
+    @Test
+    fun `every failed attempt is reported with its code and a retry shows as retrying in between`() =
+      runTest {
+        playing(podcast(progress = progress(35.0)), playing = false)
+        val code = "ERROR_CODE_IO_NETWORK_CONNECTION_FAILED"
+        val networkError = playbackException(PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED)
+
+        player.listener.onError(networkError)
+        assertEquals(PlaybackFailure(code, network = true, retrying = false), repository.playbackFailure.value)
+
+        repository.togglePlayPause()
+        assertEquals(PlaybackFailure(code, network = true, retrying = true), repository.playbackFailure.value)
+
+        player.listener.onError(networkError)
+        assertEquals(PlaybackFailure(code, network = true, retrying = false), repository.playbackFailure.value)
+
+        player.listener.onIsPlayingChanged(true)
+        assertNull(repository.playbackFailure.value)
+      }
+
+    @Test
+    fun `an error that is not a network one is not flagged as such`() =
+      runTest {
+        playing(podcast(progress = progress(35.0)), playing = false)
+        val decoderError = playbackException(PlaybackException.ERROR_CODE_DECODING_FAILED)
+
+        player.listener.onError(decoderError)
+
+        assertFalse(repository.playbackFailure.value!!.network)
+      }
+
     @Test
     fun `a player error flags the preparation and stops everything in flight`() =
       runTest {

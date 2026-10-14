@@ -72,6 +72,10 @@ class MediaRepository
     private val _mediaPreparingError = MutableStateFlow(false)
     val mediaPreparingError: StateFlow<Boolean> = _mediaPreparingError.asStateFlow()
 
+    // the last player error, kept until playback works again so the UI can show it; a retry flips it to retrying
+    private val _playbackFailure = MutableStateFlow<PlaybackFailure?>(null)
+    val playbackFailure: StateFlow<PlaybackFailure?> = _playbackFailure.asStateFlow()
+
     private val _playbackSpeed = MutableStateFlow(preferences.getPlaybackSpeed())
     val playbackSpeed: StateFlow<Float> = _playbackSpeed.asStateFlow()
 
@@ -111,6 +115,7 @@ class MediaRepository
 
           when (isPlaying) {
             true -> {
+              _playbackFailure.value = null
               progressPoller.start()
               defaultTimerActivator.onPlaybackStarted { updateTimer(it) }
             }
@@ -143,6 +148,7 @@ class MediaRepository
           _isPlaying.value = false
           playWhenReady = false
           queueBuildingItemId = null
+          _playbackFailure.value = PlaybackFailure.of(error)
           _mediaPreparingError.value = true
         }
       }
@@ -251,6 +257,7 @@ class MediaRepository
       progressPoller.stop()
       player.clear()
 
+      _playbackFailure.value = null
       _isPlaying.value = false
       _playingBook.value = null
       _finishedBook.value = null
@@ -277,6 +284,7 @@ class MediaRepository
     fun prepareAndPlay(book: DetailedItem) {
       Timber.d("prepareAndPlay: bookId=${book.id}, alreadyReady=${isPlaybackReady.value}")
 
+      markRetrying()
       when (isPlaybackReady.value) {
         true -> {
           play()
@@ -416,6 +424,7 @@ class MediaRepository
 
       defaultTimerActivator.onNewBookPrepared()
       _mediaPreparingError.value = false
+      _playbackFailure.value = null
       playWhenReady = false
       _isPlaybackReady.value = false
       queueRebuildInFlight = false
@@ -521,7 +530,12 @@ class MediaRepository
       _currentChapterDuration.value = progress.duration
     }
 
+    private fun markRetrying() {
+      _playbackFailure.value = _playbackFailure.value?.copy(retrying = true)
+    }
+
     private fun play() {
+      markRetrying()
       mainThread.run { player.whenConnected { player.play(preferences.getPlaybackSpeed()) } }
     }
 

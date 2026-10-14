@@ -81,6 +81,7 @@ import org.grakovne.lissen.ui.screens.player.composable.BookmarksComposable
 import org.grakovne.lissen.ui.screens.player.composable.FinishedBookSuggestionComposable
 import org.grakovne.lissen.ui.screens.player.composable.MediaDetailComposable
 import org.grakovne.lissen.ui.screens.player.composable.NavigationBarComposable
+import org.grakovne.lissen.ui.screens.player.composable.PlaybackFailureBanner
 import org.grakovne.lissen.ui.screens.player.composable.PlayerSettingsComposable
 import org.grakovne.lissen.ui.screens.player.composable.PlayingQueueComposable
 import org.grakovne.lissen.ui.screens.player.composable.TrackControlComposable
@@ -527,6 +528,8 @@ private fun PlayerArtworkAndControls(
       )
     }
 
+    PlaybackFailureBanner(viewModel = playerViewModel, modifier = Modifier.padding(horizontal = 16.dp))
+
     if (!isPlaybackReady) {
       TrackControlPlaceholderComposable(
         modifier = Modifier,
@@ -625,6 +628,8 @@ private fun PlayerArtworkAndControlsWide(
     }
 
     Spacer(modifier = Modifier.height(8.dp))
+
+    PlaybackFailureBanner(viewModel = playerViewModel, modifier = Modifier.padding(horizontal = 16.dp))
 
     if (isPlaybackReady) {
       TrackControlComposable(
