@@ -1,6 +1,7 @@
 package org.grakovne.lissen.ui.screens.onboarding
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
@@ -29,5 +30,14 @@ class OnboardingScreenTest {
 
     verify(exactly = 1) { viewModel.complete() }
     assertEquals(1, finished)
+  }
+
+  @Test
+  fun offersToImportSettingsBeforeAnythingIsImported() {
+    val viewModel = mockk<OnboardingViewModel>(relaxed = true)
+
+    composeRule.setContent { OnboardingScreen(onFinished = {}, viewModel = viewModel) }
+
+    composeRule.onNodeWithTag("onboardingImportButton").assertIsDisplayed().assertIsEnabled()
   }
 }

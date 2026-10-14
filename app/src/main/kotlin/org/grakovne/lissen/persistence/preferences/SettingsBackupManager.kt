@@ -20,6 +20,7 @@ class SettingsBackupManager
     private val download: DownloadPreferences,
     private val connection: ConnectionPreferences,
     private val diagnostics: DiagnosticsPreferences,
+    private val session: SessionPreferences,
   ) {
     fun exportSettings(): SettingsBackup {
       val timerDto = playback.getDefaultTimerOption()?.toDto()
@@ -53,6 +54,8 @@ class SettingsBackupManager
         userAgent = connection.getUserAgent(),
         customHeaders = connection.getCustomHeaders(),
         localUrls = connection.getLocalUrls(),
+        host = session.getHost(),
+        username = session.getUsername(),
       )
     }
 
@@ -125,6 +128,12 @@ class SettingsBackupManager
       backup.userAgent?.let { connection.saveUserAgent(it) }
       backup.customHeaders?.let { connection.saveCustomHeaders(it) }
       backup.localUrls?.let { connection.saveLocalUrls(it) }
+
+      // a signed-in session keeps its own server: the host would no longer match its tokens
+      if (session.hasCredentials().not()) {
+        backup.host?.let { session.saveHost(it) }
+        backup.username?.let { session.saveUsername(it) }
+      }
     }
 
     private fun org.grakovne.lissen.domain.TimerOption.toDto() =

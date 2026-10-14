@@ -1,6 +1,7 @@
 package org.grakovne.lissen.ui.screens.onboarding
 
 import android.content.Context
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -21,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -66,6 +68,25 @@ fun OnboardingScreen(
 
   val localNetworkLauncher =
     rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { localNetworkGranted = it }
+
+  var settingsImported by rememberSaveable { mutableStateOf(false) }
+  val importFailedToast = stringResource(R.string.import_config_failed_toast)
+
+  val importLauncher =
+    rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+      val json =
+        uri?.let {
+          runCatching {
+            context.contentResolver.openInputStream(it)?.use { stream -> stream.bufferedReader().readText() }
+          }.getOrNull()
+        }
+
+      settingsImported = json != null && viewModel.importSettingsJson(json)
+
+      if (uri != null && settingsImported.not()) {
+        Toast.makeText(context, importFailedToast, Toast.LENGTH_SHORT).show()
+      }
+    }
 
   Column(
     modifier =
@@ -113,6 +134,16 @@ fun OnboardingScreen(
           onAllow = { localNetworkLauncher.launch(localNetworkPermission()) },
         )
       }
+
+      PermissionRow(
+        title = stringResource(R.string.onboarding_import_title),
+        description = stringResource(R.string.onboarding_import_description),
+        granted = settingsImported,
+        tag = "onboardingImportButton",
+        actionLabel = stringResource(R.string.onboarding_import),
+        doneLabel = stringResource(R.string.onboarding_imported),
+        onAllow = { importLauncher.launch(arrayOf("application/json")) },
+      )
     }
 
     Button(
@@ -137,6 +168,8 @@ private fun PermissionRow(
   granted: Boolean,
   tag: String,
   onAllow: () -> Unit,
+  actionLabel: String = stringResource(R.string.onboarding_allow),
+  doneLabel: String = stringResource(R.string.onboarding_allowed),
 ) {
   Row(
     modifier = Modifier.fillMaxWidth(),
@@ -157,7 +190,7 @@ private fun PermissionRow(
       enabled = granted.not(),
       modifier = Modifier.testTag(tag),
     ) {
-      Text(stringResource(if (granted) R.string.onboarding_allowed else R.string.onboarding_allow))
+      Text(if (granted) doneLabel else actionLabel)
     }
   }
 }

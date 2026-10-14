@@ -38,6 +38,7 @@ class SettingsBackupManagerTest {
   private val editor = mockk<SharedPreferences.Editor>(relaxed = true)
   private val sharedPreferences = mockk<SharedPreferences>(relaxed = true)
   private val context = mockk<Context>(relaxed = true)
+  private val session = mockk<SessionPreferences>(relaxed = true)
   private lateinit var preferences: SettingsBackupManager
 
   @BeforeEach
@@ -60,6 +61,7 @@ class SettingsBackupManagerTest {
         download = DownloadPreferences(store),
         connection = ConnectionPreferences(store),
         diagnostics = DiagnosticsPreferences(store),
+        session = session,
       )
   }
 
@@ -286,6 +288,40 @@ class SettingsBackupManagerTest {
       assertEquals(emptyList<LocalUrl>(), backup.localUrls)
       assertNull(backup.defaultSleepTimerType)
       assertNull(backup.defaultSleepTimerMinutes)
+    }
+  }
+
+  @Nested
+  inner class Session {
+    @Test
+    fun `exports the server host and username`() {
+      every { session.getHost() } returns "https://abs.example.com"
+      every { session.getUsername() } returns "will"
+
+      val backup = preferences.exportSettings()
+
+      assertEquals("https://abs.example.com", backup.host)
+      assertEquals("will", backup.username)
+    }
+
+    @Test
+    fun `imports the host and username when signed out`() {
+      every { session.hasCredentials() } returns false
+
+      preferences.importSettings(SettingsBackup(host = "https://abs.example.com", username = "will"))
+
+      verify { session.saveHost("https://abs.example.com") }
+      verify { session.saveUsername("will") }
+    }
+
+    @Test
+    fun `ignores the host and username when already signed in`() {
+      every { session.hasCredentials() } returns true
+
+      preferences.importSettings(SettingsBackup(host = "https://other.example.com", username = "someone"))
+
+      verify(exactly = 0) { session.saveHost(any()) }
+      verify(exactly = 0) { session.saveUsername(any()) }
     }
   }
 

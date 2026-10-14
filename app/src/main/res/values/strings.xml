@@ -46,6 +46,10 @@
     <string name="onboarding_allow">Allow</string>
     <string name="onboarding_allowed">Allowed</string>
     <string name="onboarding_continue">Continue</string>
+    <string name="onboarding_import_title">Restore settings</string>
+    <string name="onboarding_import_description">Optional. Import a settings file you exported earlier, including your server address. You will still sign in on the next screen.</string>
+    <string name="onboarding_import">Import</string>
+    <string name="onboarding_imported">Imported</string>
     <string name="login_screen_title">Connect to server</string>
     <string name="hint_server_url_input">Server URL</string>
     <string name="login_screen_login_input">Login</string>

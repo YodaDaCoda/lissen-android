@@ -42,6 +42,8 @@ data class SettingsBackup(
   val userAgent: String? = null,
   val customHeaders: List<ServerRequestHeader>? = null,
   val localUrls: List<LocalUrl>? = null,
+  val host: String? = null,
+  val username: String? = null,
 ) {
   companion object {
     const val SCHEMA_VERSION = 1
