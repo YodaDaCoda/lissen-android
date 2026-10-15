@@ -57,6 +57,8 @@ class AppNavigationService(
 
   fun showCachedItemsSettings() = host.navigate(ROUTE_SETTINGS_CACHED_ITEMS)
 
+  fun showAutoCacheSettings() = host.navigate(ROUTE_SETTINGS_AUTO_CACHE)
+
   fun showCacheSettings() = host.navigate(ROUTE_SETTINGS_CACHE)
 
   fun showAdvancedSettings() = host.navigate(ROUTE_SETTINGS_ADVANCED)

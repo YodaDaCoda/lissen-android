@@ -49,8 +49,10 @@ class ContentAutoCachingService
     private val localCacheRepository: LocalCacheRepository,
     private val storage: AutoCacheStorage,
     private val books: AutoCacheBookRepository,
+    private val pause: AutoCachePause,
   ) : RunningComponent {
     private var cachingJob: Job? = null
+    private var wasPlaying = false
 
     private val scope =
       CoroutineScope(
@@ -61,6 +63,13 @@ class ContentAutoCachingService
       )
 
     override fun onCreate() {
+      // clearing the playing book from settings stops the fetch that would refill it
+      scope.launch {
+        pause.paused.collect { pausedId ->
+          if (pausedId != null && pausedId == mediaRepository.playingBook.value?.id) cachingJob?.cancel()
+        }
+      }
+
       scope.launch {
         combine(
           mediaRepository.playingBook,
@@ -71,6 +80,10 @@ class ContentAutoCachingService
         }.distinctUntilChanged { old, new ->
           old.first?.id == new.first?.id && old.second == new.second && old.third == new.third
         }.collectLatest { (playingItem, isPlaying, _) ->
+          // a play start ends a pause left by clearing the book from settings
+          if (isPlaying && !wasPlaying) pause.resume()
+          wasPlaying = isPlaying
+
           if (playingItem != null && isPlaying) {
             books.touch(playingItem.id, playingItem.title, Instant.now().toEpochMilli())
           }
@@ -106,6 +119,8 @@ class ContentAutoCachingService
       book: DetailedItem,
       isPlaying: Boolean,
     ): DownloadOption? {
+      if (pause.isPaused(book.id)) return skipped("${book.id} was cleared from settings, paused until the next play start")
+
       val option = downloadPreferences.getAutoDownloadOption() ?: return skipped("no auto-download option is selected")
 
       val isNetworkAvailable = networkService.isNetworkAvailable()

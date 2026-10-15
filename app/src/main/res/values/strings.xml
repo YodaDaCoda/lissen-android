@@ -274,6 +274,25 @@
         <item quantity="other">%1$d items · %2$s</item>
     </plurals>
     <string name="settings_screen_cached_items_title">Downloads</string>
+    <string name="download_settings_storage_used">%1$s used</string>
+    <string name="auto_cache_title">Auto-cache</string>
+    <string name="auto_cache_storage_title">Auto-cache storage</string>
+    <plurals name="auto_cache_summary">
+        <item quantity="one">%1$d book · %2$s of %3$s used</item>
+        <item quantity="other">%1$d books · %2$s of %3$s used</item>
+    </plurals>
+    <string name="auto_cache_info_title">About auto-cache</string>
+    <string name="auto_cache_info_body">Auto-cache keeps the next stretch of the book you are playing, so playback can continue through network drops. Amounts are approximate: sizes are estimated from each file\'s length, and streaming fills any gap. When space runs out, the book you played longest ago is removed first. Downloads are separate and are never removed by auto-cache.</string>
+    <string name="auto_cache_info_content_description">About auto-cache</string>
+    <string name="auto_cache_empty">Nothing is auto-cached yet</string>
+    <string name="auto_cache_clear_all">Clear all</string>
+    <string name="auto_cache_clear_all_confirmation_message">Auto-cached audio will be removed from this device. Your downloads and server data will not be affected</string>
+    <string name="auto_cache_clear_book_content_description">Clear %1$s</string>
+    <string name="auto_cache_last_played">Last played %1$s</string>
+    <string name="auto_cache_never_played">Not played on this device</string>
+    <string name="auto_cache_open_app_storage">App storage settings</string>
+    <string name="auto_cache_dialog_close">Close</string>
+    <string name="auto_cache_dialog_cancel">Cancel</string>
     <string name="download_settings_storage_used_of_ceiling">%1$s of %2$s used</string>
     <string name="volume_boost_disabled">Disabled</string>
     <string name="volume_boost_title">Boosted volume</string>

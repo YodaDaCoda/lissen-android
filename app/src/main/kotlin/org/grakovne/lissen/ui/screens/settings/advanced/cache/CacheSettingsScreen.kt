@@ -37,6 +37,7 @@ import org.grakovne.lissen.ui.navigation.AppNavigationService
 import org.grakovne.lissen.ui.screens.settings.advanced.AdvancedSettingsNavigationItemComposable
 import org.grakovne.lissen.ui.screens.settings.composable.SettingsToggleItem
 import org.grakovne.lissen.ui.screens.settings.composable.SettingsTopAppBar
+import org.grakovne.lissen.viewmodel.AutoCacheViewModel
 import org.grakovne.lissen.viewmodel.DownloadSettingsViewModel
 import org.grakovne.lissen.viewmodel.LibrarySettingsViewModel
 
@@ -46,6 +47,7 @@ fun CacheSettingsScreen(
   onBack: () -> Unit,
   navController: AppNavigationService,
   viewModel: DownloadSettingsViewModel = hiltViewModel(),
+  autoCacheViewModel: AutoCacheViewModel = hiltViewModel(),
   librarySettingsViewModel: LibrarySettingsViewModel = hiltViewModel(),
 ) {
   val context = LocalContext.current
@@ -54,8 +56,12 @@ fun CacheSettingsScreen(
   val autoDownloadDelayed by viewModel.autoDownloadDelayed.collectAsState()
   val totalCacheSizeBytes by viewModel.totalCacheSizeBytes.collectAsState()
   val storageCeilingBytes by viewModel.autoDownloadStorageCeilingBytes.collectAsState()
+  val autoCacheUsedBytes by autoCacheViewModel.usedBytes.collectAsState()
 
-  LaunchedEffect(Unit) { viewModel.refreshTotalCacheSize() }
+  LaunchedEffect(Unit) {
+    viewModel.refreshTotalCacheSize()
+    autoCacheViewModel.refresh()
+  }
 
   Scaffold(
     topBar = {
@@ -103,13 +109,19 @@ fun CacheSettingsScreen(
           ) { viewModel.preferAutoDownloadDelayed(it) }
 
           AdvancedSettingsNavigationItemComposable(
-            title = stringResource(R.string.settings_screen_cached_items_title),
+            title = stringResource(R.string.auto_cache_storage_title),
             description =
               stringResource(
                 R.string.download_settings_storage_used_of_ceiling,
-                Formatter.formatShortFileSize(context, totalCacheSizeBytes),
+                Formatter.formatShortFileSize(context, autoCacheUsedBytes),
                 Formatter.formatShortFileSize(context, storageCeilingBytes),
               ),
+            onclick = { navController.showAutoCacheSettings() },
+          )
+
+          AdvancedSettingsNavigationItemComposable(
+            title = stringResource(R.string.settings_screen_cached_items_title),
+            description = stringResource(R.string.download_settings_storage_used, Formatter.formatShortFileSize(context, totalCacheSizeBytes)),
             onclick = { navController.showCachedItemsSettings() },
           )
 

@@ -40,6 +40,7 @@ import org.grakovne.lissen.ui.screens.settings.advanced.LocalUrlSettingsScreen
 import org.grakovne.lissen.ui.screens.settings.advanced.PlaybackPreferencesScreen
 import org.grakovne.lissen.ui.screens.settings.advanced.SeekSettingsScreen
 import org.grakovne.lissen.ui.screens.settings.advanced.SleepTimerSettingsScreen
+import org.grakovne.lissen.ui.screens.settings.advanced.cache.AutoCacheScreen
 import org.grakovne.lissen.ui.screens.settings.advanced.cache.CacheSettingsScreen
 import org.grakovne.lissen.ui.screens.settings.advanced.cache.CachedItemsSettingsScreen
 
@@ -116,6 +117,10 @@ fun AppNavHost(
           onBack = navigationService::goBack,
           imageLoader = imageLoader,
         )
+      }
+
+      composable(route = ROUTE_SETTINGS_AUTO_CACHE) {
+        AutoCacheScreen(onBack = navigationService::goBack)
       }
 
       composable(route = ROUTE_SETTINGS_CACHE) {
