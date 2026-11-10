@@ -391,6 +391,12 @@ class FinishedSuggestionViewModelTest {
         libraryType = LibraryType.LIBRARY,
         series = listOf(BookSeries(serialNumber = "1", name = "Test Series", id = "series-1")),
       )
+    // unstubbed, a relaxed mock hands back a bare Object where a result is expected; the cast
+    // failure then escapes the view model's scope and fails whichever test starts next
+    coEvery { mediaChannel.fetchSeriesItems("lib-1", "series-1", any(), any()) } returns
+      OperationResult.Success(emptyList())
+    coEvery { mediaChannel.fetchBooks(any(), any(), any(), any(), any()) } returns
+      OperationResult.Success(PagedItems(items = emptyList(), currentPage = 0, totalItems = 0))
 
     viewModel.load("book-1")
 
