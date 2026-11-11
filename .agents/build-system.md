@@ -43,6 +43,15 @@ This produces a ~11 MB APK at `app/build/outputs/apk/dev/app-dev.apk`, vs. ~100 
 would need 4 build types (`dev`, `dev-mini`, `dev-arm64`, `dev-mini-arm64`) to cover, and that's
 before `release` gets the same treatment. Flags compose; build types don't.
 
+## Pinned `material3` (1.5.0-rc01)
+
+`gradle/libs.versions.toml` pins `androidx.compose.material3` to `1.5.0-rc01` (the `material3` version
+entry), overriding the Compose BOM (`2026.09.00`) for that one artifact. The wavy Chapter progress bar
+(`LinearWavyProgressIndicator`, `SliderState`-based `Slider` with a custom track) needs the expressive
+APIs from 1.5.0, which the BOM doesn't ship yet. Drop the `version.ref` (and the `material3` entry) once
+the BOM resolves material3 to a stable 1.5.0 or later; the `@OptIn(ExperimentalMaterial3ExpressiveApi)`
+sites can go when those APIs stabilise.
+
 ## Per-build launcher icon
 
 EasyLauncher (`app/build.gradle.kts:14-46`) overlays a colored ribbon + label onto the launcher
