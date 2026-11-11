@@ -10,17 +10,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.Slider
-import androidx.compose.material.SliderDefaults
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.PauseCircleFilled
 import androidx.compose.material.icons.rounded.PlayCircleFilled
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme.colorScheme
 import androidx.compose.material3.MaterialTheme.typography
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.SliderState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -49,6 +51,7 @@ import org.grakovne.lissen.ui.screens.player.composable.common.provideForwardIco
 import org.grakovne.lissen.ui.screens.player.composable.common.provideReplayIcon
 import org.grakovne.lissen.viewmodel.PlayerViewModel
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun TrackControlComposable(
   viewModel: PlayerViewModel,
@@ -56,6 +59,7 @@ fun TrackControlComposable(
   modifier: Modifier = Modifier,
 ) {
   val isPlaying by viewModel.isPlaying.collectAsState()
+  val playIntent by viewModel.playIntent.collectAsState()
   val currentTrackIndex by viewModel.currentChapterIndex.collectAsState()
   val currentTrackPosition by viewModel.currentChapterPosition.collectAsState()
   val currentTrackDuration by viewModel.currentChapterDuration.collectAsState()
@@ -68,9 +72,16 @@ fun TrackControlComposable(
   var sliderPosition by remember { mutableDoubleStateOf(0.0) }
   var isDragging by remember { mutableStateOf(false) }
 
+  // The state's range is fixed at construction, so a new duration (chapter change) needs a new state.
+  val sliderState =
+    remember(currentTrackDuration) {
+      SliderState(safeSliderPosition(currentTrackPosition, currentTrackDuration).toFloat(), 0, 0f..safeSliderDuration(currentTrackDuration))
+    }
+
   LaunchedEffect(currentTrackPosition, currentTrackIndex, currentTrackDuration) {
     if (!isDragging) {
       sliderPosition = safeSliderPosition(currentTrackPosition, currentTrackDuration)
+      sliderState.value = sliderPosition.toFloat()
     }
   }
 
@@ -93,7 +104,7 @@ fun TrackControlComposable(
       modifier = Modifier.fillMaxWidth(),
     ) {
       Slider(
-        value = sliderPosition.toFloat(),
+        state = sliderState,
         onValueChange = { newPosition ->
           isDragging = true
           sliderPosition = newPosition.toDouble()
@@ -102,12 +113,14 @@ fun TrackControlComposable(
           isDragging = false
           viewModel.seekTo(sliderPosition)
         },
-        valueRange = 0f..safeSliderDuration(currentTrackDuration),
         colors =
           SliderDefaults.colors(
             thumbColor = colorScheme.primary,
             activeTrackColor = colorScheme.primary,
           ),
+        track = { sliderState ->
+          WavyTrack(sliderState = sliderState, waving = shouldWave(playIntent, isDragging))
+        },
         modifier =
           Modifier
             .fillMaxWidth()
@@ -243,3 +256,9 @@ internal fun safeSliderPosition(
 
   return position.coerceIn(0.0, safeSliderDuration(duration).toDouble())
 }
+
+/** The Chapter progress track waves while the player means to play, but sits flat under the user's thumb. */
+internal fun shouldWave(
+  playIntent: Boolean,
+  isDragging: Boolean,
+): Boolean = playIntent && !isDragging

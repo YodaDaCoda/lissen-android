@@ -1,6 +1,8 @@
 package org.grakovne.lissen.ui.screens.player.composable
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class TrackControlComposableTest {
@@ -48,5 +50,20 @@ class TrackControlComposableTest {
   fun `maps any position to zero when duration is corrupted`() {
     assertEquals(0.0, safeSliderPosition(50.0, -61_828.82))
     assertEquals(0.0, safeSliderPosition(50.0, Double.NaN))
+  }
+
+  @Test
+  fun `waves while play intent holds and the thumb is free`() {
+    assertTrue(shouldWave(playIntent = true, isDragging = false))
+  }
+
+  @Test
+  fun `stays flat without play intent`() {
+    assertFalse(shouldWave(playIntent = false, isDragging = false))
+  }
+
+  @Test
+  fun `flattens while dragging even with play intent`() {
+    assertFalse(shouldWave(playIntent = true, isDragging = true))
   }
 }

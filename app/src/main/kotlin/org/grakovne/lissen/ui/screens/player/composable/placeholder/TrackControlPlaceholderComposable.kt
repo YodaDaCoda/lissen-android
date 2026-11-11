@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.Slider
-import androidx.compose.material.SliderDefaults
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.PlayCircleFilled
 import androidx.compose.material.icons.rounded.SkipNext
@@ -19,7 +17,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme.colorScheme
 import androidx.compose.material3.MaterialTheme.typography
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberSliderState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,14 +45,17 @@ fun TrackControlPlaceholderComposable(
       modifier = Modifier.fillMaxWidth(),
     ) {
       Slider(
-        value = 0f,
+        state = rememberSliderState(),
         onValueChange = {},
-        onValueChangeFinished = {},
-        valueRange = 0f..1f,
+        enabled = false,
+        // disabled stops it being dragged; the disabled colours keep it looking like the live slider
         colors =
           SliderDefaults.colors(
             thumbColor = colorScheme.primary,
             activeTrackColor = colorScheme.primary,
+            disabledThumbColor = colorScheme.primary,
+            disabledActiveTrackColor = colorScheme.primary,
+            disabledInactiveTrackColor = SliderDefaults.colors().inactiveTrackColor,
           ),
         modifier = Modifier.fillMaxWidth(),
       )
