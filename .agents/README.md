@@ -16,10 +16,32 @@ This repo is **a series of clean slice patches applied on top of upstream**
 - `.github/workflows/upstream_sync.yml` does the rebase + dev release on a schedule; it fails
   loudly on conflicts rather than guessing — resolve the slice by hand.
 
-This is a personal fork of [GrakovNe/lissen-android](https://github.com/GrakovNe/lissen-android),
-tracked directly on `main` against upstream `origin` (no separate fork remote). Fork-specific work
-lives as a long-running uncommitted/locally-committed diff on top of upstream `main` — check
-`git status` and `git log` before assuming what's shipped vs. in progress.
+### Goal: upstreamable patches
+
+This fork exists as a **patch set on upstream's work, not a divergent product**. The end goal is
+that slices are accepted upstream, at which point they drop out of the stack on the next rebase.
+So:
+
+- Write each slice as a PR upstream would accept: focused, following upstream's conventions, no
+  fork-specific assumptions. Don't couple a slice to fork-only commits.
+- **Fork-only slices** are never offered upstream: agent notes/docs, the `dev` build type and
+  devenv toolchain, disabling crash reporting, the upstream-sync CI. Everything else is an
+  upstream candidate. Keep fork-only changes out of feature slices.
+- A slice is extractable if `git cherry-pick <slice>` applies cleanly onto `upstream/main`. If it
+  doesn't, it depends on something fork-only (or on another slice) — fix that.
+- Prefer upstream's naming and structure over ours when they conflict; diverge only with a reason
+  recorded in the relevant doc here.
+- Track upstream PRs/issues for slices in the fork's GitHub issues (see `docs/agents/issue-tracker.md`).
+
+### Rebasing onto a new upstream release
+
+Remotes: `origin` = the fork (`YodaDaCoda/lissen-android`), `upstream` = `GrakovNe/lissen-android`.
+Use the **`rebase-onto-upstream`** skill (`.agents/skills/rebase-onto-upstream/SKILL.md` (symlinked from `.claude/skills/` so Claude Code finds it)); the
+nightly workflow only tracks upstream `main` and just fails when a slice conflicts.
+
+This is a personal fork of [GrakovNe/lissen-android](https://github.com/GrakovNe/lissen-android).
+Fork-specific work lives as a stack of slice commits on top of upstream — check
+`git status` and `git log upstream/main..main` before assuming what's shipped vs. in progress.
 
 Each doc below covers one feature area: what it does, the non-obvious decisions behind it, and
 anything a future change needs to respect. Read the relevant doc before touching that area —
