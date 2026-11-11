@@ -59,6 +59,7 @@ class PlayerViewModelTest {
   private val playbackSpeed = MutableStateFlow(1f)
   private val mediaPreparingError = MutableStateFlow(false)
   private val isPlaying = MutableStateFlow(false)
+  private val playIntent = MutableStateFlow(false)
   private val bookmarks = MutableStateFlow<List<Bookmark>>(emptyList())
   private val timerOption = MutableStateFlow<TimerOption?>(null)
   private val timerRemaining = MutableStateFlow<Long?>(null)
@@ -84,6 +85,7 @@ class PlayerViewModelTest {
     every { mediaRepository.playbackSpeed } returns playbackSpeed
     every { mediaRepository.mediaPreparingError } returns mediaPreparingError
     every { mediaRepository.isPlaying } returns isPlaying
+    every { mediaRepository.playIntent } returns playIntent
     every { mediaRepository.bookmarks } returns bookmarks
     every { mediaRepository.timerOption } returns timerOption
     every { mediaRepository.timerRemaining } returns timerRemaining
@@ -99,6 +101,14 @@ class PlayerViewModelTest {
   @AfterEach
   fun teardown() {
     Dispatchers.resetMain()
+  }
+
+  @Test
+  fun `playIntent follows the repository and is independent of isPlaying`() {
+    playIntent.value = true
+
+    assertTrue(viewModel.playIntent.value)
+    assertFalse(viewModel.isPlaying.value)
   }
 
   @Nested

@@ -1105,4 +1105,93 @@ class MediaRepositoryTest {
         assertNull(repository.timerOption.value)
       }
   }
+
+  @Nested
+  inner class PlayIntent {
+    @Test
+    fun `is false before anything plays`() {
+      assertFalse(repository.playIntent.value)
+    }
+
+    @Test
+    fun `is true once playback is intended, and isPlaying follows its own events`() {
+      player.listener.onPlayIntentChanged(true)
+      player.listener.onIsPlayingChanged(true)
+
+      assertTrue(repository.playIntent.value)
+      assertTrue(repository.isPlaying.value)
+    }
+
+    @Test
+    fun `is false when paused`() {
+      player.listener.onPlayIntentChanged(true)
+      player.listener.onPlayIntentChanged(false)
+
+      assertFalse(repository.playIntent.value)
+    }
+
+    @Test
+    fun `stays true while buffering, when isPlaying is false`() {
+      player.listener.onPlayIntentChanged(true)
+      player.listener.onIsPlayingChanged(false)
+
+      assertTrue(repository.playIntent.value)
+      assertFalse(repository.isPlaying.value)
+    }
+
+    @Test
+    fun `stays true through a rebuffer stall mid-playback`() {
+      player.listener.onPlayIntentChanged(true)
+      player.listener.onIsPlayingChanged(true)
+      player.listener.onIsPlayingChanged(false)
+
+      assertTrue(repository.playIntent.value)
+      assertFalse(repository.isPlaying.value)
+
+      player.listener.onIsPlayingChanged(true)
+      assertTrue(repository.playIntent.value)
+    }
+
+    @Test
+    fun `is false when the book ends`() {
+      player.listener.onPlayIntentChanged(true)
+      player.listener.onIsPlayingChanged(true)
+
+      player.listener.onEnded()
+
+      assertFalse(repository.playIntent.value)
+    }
+
+    @Test
+    fun `is false after the playing book is cleared`() =
+      runTest {
+        playing(podcast(), playing = true)
+        player.listener.onPlayIntentChanged(true)
+
+        repository.clearPlayingBook()
+
+        assertFalse(repository.playIntent.value)
+      }
+
+    @Test
+    fun `is false when a different book starts preparing`() =
+      runTest {
+        playing(podcast(), playing = true)
+        player.listener.onPlayIntentChanged(true)
+        repository.clearPreparedItem()
+
+        repository.prepareAndPlay(podcast(id = "next"))
+
+        assertFalse(repository.playIntent.value)
+      }
+
+    @Test
+    fun `is false after a playback failure, even though the player keeps playWhenReady`() {
+      player.listener.onPlayIntentChanged(true)
+
+      player.listener.onError(mockk<PlaybackException>(relaxed = true))
+
+      assertFalse(repository.playIntent.value)
+    }
+  }
 }

@@ -38,6 +38,9 @@ interface PlayerConnection {
   interface Listener {
     fun onIsPlayingChanged(isPlaying: Boolean)
 
+    /** Whether the player intends to play: unlike isPlaying, buffering and rebuffer stalls count. */
+    fun onPlayIntentChanged(intended: Boolean)
+
     /** [byPlayback] is true when playback moved into the next file or chapter by itself; nothing else moved it. */
     fun onPositionDiscontinuity(byPlayback: Boolean)
 

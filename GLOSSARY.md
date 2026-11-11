@@ -1,6 +1,6 @@
 # Lissen
 
-An audiobook player. This glossary covers the sleep timer and its automatic arming, and auto-cache versus downloads.
+An audiobook player. This glossary covers the sleep timer and its automatic arming, play intent, and auto-cache versus downloads.
 
 ## Sleep timer
 
@@ -23,6 +23,12 @@ _Avoid_: Playback session (ambiguous with a single play/pause run)
 **Manual override**:
 The user setting or cancelling the timer by hand, which suppresses arming for the rest of the session.
 _Avoid_: Manual timer
+
+## Playback
+
+**Play intent**:
+Whether the player means to play: play-when-ready, and not ended, idle or failed. Stays true through buffering and rebuffer stalls, unlike `isPlaying`, which goes false there and drives the play/pause icon.
+_Avoid_: Playing state (ambiguous with `isPlaying`)
 
 ## Storage
 

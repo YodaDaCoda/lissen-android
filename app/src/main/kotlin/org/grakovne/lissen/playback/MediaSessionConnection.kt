@@ -46,6 +46,7 @@ class MediaSessionConnection
           override fun onSuccess(result: MediaController) {
             controller = result
             result.addListener(listener.asPlayerListener())
+            listener.onPlayIntentChanged(result.playIntent())
             onConnected()
             deferredActions.drain()
           }
@@ -105,19 +106,33 @@ class MediaSessionConnection
       MediaController.releaseFuture(futureController)
     }
 
+    private fun Player.playIntent() = playWhenReady && playbackState != Player.STATE_ENDED && playbackState != Player.STATE_IDLE
+
     private fun PlayerConnection.Listener.asPlayerListener(): Player.Listener =
       object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) = this@asPlayerListener.onIsPlayingChanged(isPlaying)
+
+        override fun onPlayWhenReadyChanged(
+          playWhenReady: Boolean,
+          reason: Int,
+        ) = notifyPlayIntent()
+
+        override fun onPlaybackStateChanged(playbackState: Int) {
+          if (playbackState == Player.STATE_ENDED) this@asPlayerListener.onEnded()
+          notifyPlayIntent()
+        }
+
+        // after a failure ExoPlayer drops to IDLE, which notifyPlayIntent reads as no intent
+        private fun notifyPlayIntent() {
+          val player = controller ?: return
+          this@asPlayerListener.onPlayIntentChanged(player.playIntent())
+        }
 
         override fun onPositionDiscontinuity(
           oldPosition: Player.PositionInfo,
           newPosition: Player.PositionInfo,
           reason: Int,
         ) = this@asPlayerListener.onPositionDiscontinuity(byPlayback = reason == Player.DISCONTINUITY_REASON_AUTO_TRANSITION)
-
-        override fun onPlaybackStateChanged(playbackState: Int) {
-          if (playbackState == Player.STATE_ENDED) this@asPlayerListener.onEnded()
-        }
 
         override fun onPlayerError(error: PlaybackException) = this@asPlayerListener.onError(error)
       }

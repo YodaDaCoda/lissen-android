@@ -54,6 +54,9 @@ class MediaRepository
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
 
+    private val _playIntent = MutableStateFlow(false)
+    val playIntent: StateFlow<Boolean> = _playIntent.asStateFlow()
+
     private val _timerOption = MutableStateFlow<TimerOption?>(null)
     val timerOption: StateFlow<TimerOption?> = _timerOption.asStateFlow()
 
@@ -160,6 +163,10 @@ class MediaRepository
           }
         }
 
+        override fun onPlayIntentChanged(intended: Boolean) {
+          _playIntent.value = intended
+        }
+
         override fun onPositionDiscontinuity(byPlayback: Boolean) {
           if (queueRebuildInFlight) return
 
@@ -181,6 +188,7 @@ class MediaRepository
         }
 
         override fun onEnded() {
+          _playIntent.value = false
           _finishedBook.value = _playingBook.value
           player.seekTo(0, 0)
           player.pause()
@@ -191,6 +199,7 @@ class MediaRepository
           queueRebuildInFlight = false
           progressPoller.stop()
           _isPlaying.value = false
+          _playIntent.value = false
           playWhenReady = false
           queueBuildingItemId = null
           _playbackFailure.value = PlaybackFailure.of(error)
@@ -322,6 +331,7 @@ class MediaRepository
       _playbackFailure.value = null
       _playbackFailure.value = null
       _isPlaying.value = false
+      _playIntent.value = false
       _playingBook.value = null
       _finishedBook.value = null
       preferences.clearPlayingItem(bookId)
@@ -560,6 +570,7 @@ class MediaRepository
         false -> {
           _totalPosition.value = 0.0
           _isPlaying.value = false
+          _playIntent.value = false
 
           _playingBook.value = book
           preferences.savePlayingItem(book)

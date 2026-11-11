@@ -86,6 +86,9 @@ class PlayerViewModel
 
     val isPlaying: StateFlow<Boolean> = mediaRepository.isPlaying
 
+    /** True while the player intends to play, buffering stalls included; for UI that must not flicker on them. */
+    val playIntent: StateFlow<Boolean> = mediaRepository.playIntent
+
     val bookmarks: StateFlow<List<Bookmark>> = mediaRepository.bookmarks
 
     fun createBookmark(title: String? = null) {
