@@ -96,6 +96,7 @@ import org.grakovne.lissen.ui.screens.player.composable.placeholder.TrackControl
 import org.grakovne.lissen.ui.screens.player.composable.placeholder.TrackDetailsPlaceholderComposable
 import org.grakovne.lissen.ui.screens.player.composable.primaryAuthorName
 import org.grakovne.lissen.ui.screens.player.composable.provideChapterNumberTitle
+import org.grakovne.lissen.ui.screens.player.composable.rememberBookProgress
 import org.grakovne.lissen.ui.screens.player.composable.seriesName
 import org.grakovne.lissen.viewmodel.CachingModelView
 import org.grakovne.lissen.viewmodel.FinishedSuggestionViewModel
@@ -558,6 +559,7 @@ private fun PlayerArtworkAndControlsWide(
 ) {
   val context = LocalContext.current
   val currentChapterIndex by playerViewModel.currentChapterIndex.collectAsState()
+  val totalPosition = playerViewModel.totalPosition.collectAsState()
 
   Column(
     horizontalAlignment = Alignment.CenterHorizontally,
@@ -578,6 +580,7 @@ private fun PlayerArtworkAndControlsWide(
           BookCover(
             book = playingBook,
             imageLoader = imageLoader,
+            bookProgress = rememberBookProgress(playingBook, totalPosition),
             modifier = Modifier.size(side),
           )
         } else {

@@ -57,6 +57,7 @@
     <string name="login_screen_password_input">Password</string>
     <string name="login_screen_connect_button_text">Connect</string>
     <string name="player_screen_playback_speed_navigation">Speed</string>
+    <string name="player_screen_book_progress_description">Book progress, %1$d%%</string>
     <string name="player_screen_chapter_list_navigation_library">Chapters</string>
     <string name="player_screen_chapter_list_navigation_podcast">Episodes</string>
     <string name="player_screen_library_playing_title">Playing chapters</string>

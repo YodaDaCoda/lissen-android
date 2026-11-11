@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.valentinilk.shimmer.shimmer
 import org.grakovne.lissen.R
+import org.grakovne.lissen.ui.screens.player.composable.BookProgressBar
 
 @Composable
 fun BookCoverPlaceholder(modifier: Modifier = Modifier) {
@@ -36,7 +37,9 @@ fun BookCoverPlaceholder(modifier: Modifier = Modifier) {
         .clip(RoundedCornerShape(8.dp))
         .shimmer()
         .background(Color.Gray),
-  )
+  ) {
+    BookProgressBar(progress = { 0f }, modifier = Modifier.align(Alignment.BottomCenter))
+  }
 }
 
 @Composable

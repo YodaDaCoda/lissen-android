@@ -1,9 +1,11 @@
 package org.grakovne.lissen.ui.screens.player.composable
 
 import android.content.Context
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -41,6 +43,7 @@ import org.grakovne.lissen.viewmodel.PlayerViewModel
 fun BookCover(
   book: DetailedItem?,
   imageLoader: ImageLoader,
+  bookProgress: () -> Float,
   modifier: Modifier = Modifier,
 ) {
   val context = LocalContext.current
@@ -54,14 +57,18 @@ fun BookCover(
         .build()
     }
 
-  AsyncShimmeringImage(
-    imageRequest = imageRequest,
-    imageLoader = imageLoader,
-    contentDescription = null,
-    contentScale = ContentScale.FillBounds,
-    modifier = modifier.clip(RoundedCornerShape(8.dp)),
-    error = painterResource(R.drawable.cover_fallback),
-  )
+  Box(modifier = modifier.clip(RoundedCornerShape(8.dp))) {
+    AsyncShimmeringImage(
+      imageRequest = imageRequest,
+      imageLoader = imageLoader,
+      contentDescription = null,
+      contentScale = ContentScale.FillBounds,
+      modifier = Modifier.fillMaxSize(),
+      error = painterResource(R.drawable.cover_fallback),
+    )
+
+    BookProgressBar(progress = bookProgress, modifier = Modifier.align(Alignment.BottomCenter))
+  }
 }
 
 @Composable
@@ -73,6 +80,7 @@ fun TrackDetailsComposable(
 ) {
   val currentTrackIndex by viewModel.currentChapterIndex.collectAsState()
   val book by viewModel.book.collectAsState()
+  val totalPosition = viewModel.totalPosition.collectAsState()
 
   val context = LocalContext.current
 
@@ -86,6 +94,7 @@ fun TrackDetailsComposable(
     BookCover(
       book = book,
       imageLoader = imageLoader,
+      bookProgress = rememberBookProgress(book, totalPosition),
       modifier =
         Modifier
           .heightIn(max = maxImageHeight)
