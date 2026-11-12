@@ -1,5 +1,6 @@
 package org.grakovne.lissen.ui.screens.settings.advanced.cache
 
+import android.text.format.Formatter
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -20,10 +21,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -45,9 +48,14 @@ fun CacheSettingsScreen(
   viewModel: DownloadSettingsViewModel = hiltViewModel(),
   librarySettingsViewModel: LibrarySettingsViewModel = hiltViewModel(),
 ) {
+  val context = LocalContext.current
   val preferredDownloadOption by viewModel.preferredAutoDownloadOption.collectAsState()
   val libraryType by librarySettingsViewModel.preferredLibraryType.collectAsState()
   val autoDownloadDelayed by viewModel.autoDownloadDelayed.collectAsState()
+  val totalCacheSizeBytes by viewModel.totalCacheSizeBytes.collectAsState()
+  val storageCeilingBytes by viewModel.autoDownloadStorageCeilingBytes.collectAsState()
+
+  LaunchedEffect(Unit) { viewModel.refreshTotalCacheSize() }
 
   Scaffold(
     topBar = {
@@ -83,6 +91,10 @@ fun CacheSettingsScreen(
 
           LibraryTypeAutoCacheSettingsComposable(viewModel, preferredDownloadOption != null)
 
+          StorageCeilingSettingsComposable(viewModel, preferredDownloadOption != null)
+
+          RetentionWindowSettingsComposable(viewModel, preferredDownloadOption != null)
+
           SettingsToggleItem(
             enabled = preferredDownloadOption != null,
             title = stringResource(R.string.settings_screen_delay_autodownload_title),
@@ -92,7 +104,12 @@ fun CacheSettingsScreen(
 
           AdvancedSettingsNavigationItemComposable(
             title = stringResource(R.string.settings_screen_cached_items_title),
-            description = stringResource(R.string.settings_screen_cached_items_hint),
+            description =
+              stringResource(
+                R.string.download_settings_storage_used_of_ceiling,
+                Formatter.formatShortFileSize(context, totalCacheSizeBytes),
+                Formatter.formatShortFileSize(context, storageCeilingBytes),
+              ),
             onclick = { navController.showCachedItemsSettings() },
           )
 

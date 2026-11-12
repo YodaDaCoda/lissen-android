@@ -110,7 +110,6 @@
     <string name="continue_playback_shortcut_description">Kontynuuj słuchanie</string>
     <string name="offline_cache_is_empty">Brak pobranej treści</string>
     <string name="settings_screen_cached_items_title">Pobrane</string>
-    <string name="settings_screen_cached_items_hint">Zarządzaj pobraną treścią</string>
     <string name="volume_boost_disabled">Wyłączony</string>
     <string name="volume_boost_title">Wzmocniony dźwięk</string>
     <string name="playing_item_details_time_remaining">Pozostały czas</string>

@@ -113,7 +113,6 @@
     <string name="continue_playback_shortcut_description">Genoptag afspilning</string>
     <string name="offline_cache_is_empty">Ingen gemt indhold endnu</string>
     <string name="settings_screen_cached_items_title">Overførsler</string>
-    <string name="settings_screen_cached_items_hint">Administrer gemt indhold</string>
     <string name="volume_boost_disabled">Deaktiveret</string>
     <string name="volume_boost_title">Forstærket lydstyrke</string>
     <string name="playing_item_details_time_remaining">Resterende tid</string>

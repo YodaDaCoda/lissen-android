@@ -269,8 +269,12 @@
     <string name="continue_playback_shortcut_title">Continue</string>
     <string name="continue_playback_shortcut_description">Continue listening</string>
     <string name="offline_cache_is_empty">No saved content yet</string>
+    <plurals name="cached_items_total_summary">
+        <item quantity="one">%1$d item · %2$s</item>
+        <item quantity="other">%1$d items · %2$s</item>
+    </plurals>
     <string name="settings_screen_cached_items_title">Downloads</string>
-    <string name="settings_screen_cached_items_hint">Manage saved content</string>
+    <string name="download_settings_storage_used_of_ceiling">%1$s of %2$s used</string>
     <string name="volume_boost_disabled">Disabled</string>
     <string name="volume_boost_title">Boosted volume</string>
     <string name="settings_screen_equalizer_title">Equalizer</string>
@@ -293,11 +297,21 @@
     <string name="settings_screen_audio_focus_loss_policy_title">Playback on notification</string>
     <string name="settings_screen_audio_focus_loss_policy_option_pause">Pause</string>
     <string name="settings_screen_audio_focus_loss_policy_option_lower_volume">Lower volume</string>
-    <string name="settings_download_automatically_title">Download automatically</string>
+    <string name="settings_download_automatically_title">Auto-cache ahead</string>
+    <string name="settings_download_automatically_unit_chapters">Chapters</string>
+    <string name="settings_download_automatically_unit_time">Time</string>
     <string name="download_settings_title">Downloads</string>
     <string name="download_settings_description">Define downloads and manage content</string>
-    <string name="download_settings_network_type_title">Use for automatic downloads</string>
-    <string name="download_settings_library_type_title">Download automatically</string>
+    <string name="download_settings_network_type_title">Use for auto-cache</string>
+    <string name="download_settings_storage_ceiling_title">Auto-cache storage ceiling</string>
+    <string name="download_settings_retention_window_title">Retain behind playhead</string>
+    <string name="download_settings_retention_rearm_multiple">×%d sleep timer re-arm amount</string>
+    <string name="download_settings_retention_unit_rearm">Re-arm</string>
+    <plurals name="download_settings_retention_chapters">
+        <item quantity="one">%d chapter</item>
+        <item quantity="other">%d chapters</item>
+    </plurals>
+    <string name="download_settings_library_type_title">Auto-cache library types</string>
     <string name="download_settings_library_type_no_items_selected">No types defined</string>
     <string name="download_settings_storage_title">Storage location</string>
     <string name="download_settings_storage_unavailable">Unavailable</string>
@@ -319,8 +333,8 @@
     <string name="settings_screen_clear_thumbnail_cache_success_toast">Thumbnail cache cleared</string>
     <string name="clear_thumbnail_cache_confirmation_message">Cached cover images will be removed from this device. Your server data will not be affected</string>
     <string name="clear_thumbnail_cache_confirm">Clear</string>
-    <string name="settings_screen_delay_autodownload_title">Delay automatic download</string>
-    <string name="settings_screen_delay_autodownload_description">Wait a short time before starting download</string>
+    <string name="settings_screen_delay_autodownload_title">Delay auto-cache</string>
+    <string name="settings_screen_delay_autodownload_description">Wait 30 seconds of uninterrupted playback before caching, so skipping around does not start it</string>
     <string name="settings_screen_bypass_ssl_title">Disable SSL verification</string>
     <string name="settings_screen_bypass_ssl_hint">Connect to servers with any certificate</string>
     <string name="settings_screen_client_cert_title">Client certificate</string>

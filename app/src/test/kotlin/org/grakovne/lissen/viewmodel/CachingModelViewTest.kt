@@ -1,10 +1,13 @@
 package org.grakovne.lissen.viewmodel
 
 import android.content.Context
+import android.content.Intent
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkConstructor
+import io.mockk.unmockkConstructor
 import io.mockk.verify
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -24,6 +27,7 @@ import org.grakovne.lissen.content.cache.temporary.GroupCoverProvider
 import org.grakovne.lissen.domain.BookChapterState
 import org.grakovne.lissen.domain.CacheStatus
 import org.grakovne.lissen.domain.DetailedItem
+import org.grakovne.lissen.domain.NumberItemDownloadOption
 import org.grakovne.lissen.domain.PlayingChapter
 import org.grakovne.lissen.persistence.preferences.DownloadPreferences
 import org.grakovne.lissen.persistence.preferences.LibraryPreferences
@@ -240,6 +244,10 @@ class CachingModelViewTest {
 
         assertEquals(12345L, result)
       }
+  }
+
+  @Nested
+  inner class Cache {
   }
 
   @Nested
