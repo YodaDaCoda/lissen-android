@@ -13,4 +13,8 @@ interface ContentAutoCachingModule {
   @Binds
   @IntoSet
   fun bindContentAutoCachingService(service: ContentAutoCachingService): RunningComponent
+
+  @Binds
+  @IntoSet
+  fun bindLegacyAutoCacheCleanup(cleanup: LegacyAutoCacheCleanup): RunningComponent
 }
