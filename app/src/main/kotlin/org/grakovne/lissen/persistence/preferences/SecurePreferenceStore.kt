@@ -70,6 +70,16 @@ class SecurePreferenceStore
       value: Float,
     ) = preferences.edit { putFloat(key, value) }
 
+    fun getLong(
+      key: String,
+      default: Long,
+    ): Long = preferences.getLong(key, default)
+
+    fun putLong(
+      key: String,
+      value: Long,
+    ) = preferences.edit { putLong(key, value) }
+
     fun remove(
       key: String,
       commit: Boolean = false,

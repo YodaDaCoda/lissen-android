@@ -4,10 +4,12 @@ import org.grakovne.lissen.domain.AllItemsDownloadOption
 import org.grakovne.lissen.domain.BookChapterState
 import org.grakovne.lissen.domain.CurrentItemDownloadOption
 import org.grakovne.lissen.domain.DetailedItem
+import org.grakovne.lissen.domain.DurationDownloadOption
 import org.grakovne.lissen.domain.NumberItemDownloadOption
 import org.grakovne.lissen.domain.PlayingChapter
 import org.grakovne.lissen.domain.RemainingItemsDownloadOption
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 
@@ -130,6 +132,37 @@ class CalculateRequestedChaptersTest {
       val book = book(10.0, 10.0, 10.0)
       val result = calculateRequestedChapters(book, RemainingItemsDownloadOption, 0.0)
       assertEquals(3, result.size)
+    }
+  }
+
+  @Nested
+  inner class DurationItems {
+    @Test
+    fun `returns chapters starting within the window from current position`() {
+      val book = book(600.0, 600.0, 600.0, 600.0)
+      val result = calculateRequestedChapters(book, DurationDownloadOption(15), 0.0)
+      assertEquals(listOf("c0", "c1"), result.map { it.id })
+    }
+
+    @Test
+    fun `a chapter starting exactly at the cutoff is excluded`() {
+      val book = book(600.0, 600.0, 600.0, 600.0)
+      val result = calculateRequestedChapters(book, DurationDownloadOption(10), 0.0)
+      assertEquals(listOf("c0"), result.map { it.id })
+    }
+
+    @Test
+    fun `zero minutes requests nothing`() {
+      val book = book(600.0, 600.0)
+      val result = calculateRequestedChapters(book, DurationDownloadOption(0), 0.0)
+      assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `position past the last chapter returns just that chapter`() {
+      val book = book(600.0, 600.0, 600.0, 600.0)
+      val result = calculateRequestedChapters(book, DurationDownloadOption(15), 3000.0)
+      assertEquals(listOf("c3"), result.map { it.id })
     }
   }
 }
