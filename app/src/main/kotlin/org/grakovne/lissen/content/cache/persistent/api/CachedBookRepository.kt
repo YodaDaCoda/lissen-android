@@ -130,6 +130,8 @@ class CachedBookRepository
 
     suspend fun countCachedItems(): Int = bookDao.fetchCachedItemsCount()
 
+    suspend fun fetchTotalCacheSizeBytes(): Long = bookDao.fetchTotalCacheSizeBytes()
+
     suspend fun fetchLatestUpdate(libraryId: String) = bookDao.fetchLatestUpdate(libraryId)
 
     suspend fun fetchBooks(

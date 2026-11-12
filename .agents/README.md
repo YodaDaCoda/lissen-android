@@ -49,7 +49,7 @@ these capture reasoning that isn't visible from the code alone (rejected alterna
 constraints, bugs already hit once).
 
 - [build-system.md](build-system.md) — `release`/`dev` build types, `-Pminified`/`-PsingleAbi` flags, per-build icon ribbons, devenv/Nix toolchain.
-- [auto-cache.md](auto-cache.md) — time-windowed auto-cache for the currently-playing book: storage ceiling, retention window, ownership tracking, the "never auto-delete" constraint it was built around.
+- [auto-cache.md](auto-cache.md) — range-based auto-cache for the playing book: the pure planner, ceiling and eviction, the Media3 adapter, how it stays separate from downloads.
 - [sleep-timer.md](sleep-timer.md) — sleep timer subsystem: car-mode disable, shake-to-rearm, chime/fade, rearm extension modes.
 - [android-auto.md](android-auto.md) — Android Auto status and the sideload "Unknown sources" gotcha.
 - [room-migrations.md](room-migrations.md) — migration discipline, and the launch-crash postmortem that established it.

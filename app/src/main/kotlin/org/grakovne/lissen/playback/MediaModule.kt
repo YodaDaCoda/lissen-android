@@ -10,6 +10,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.cache.Cache
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
+import androidx.media3.datasource.cache.NoOpCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
@@ -32,6 +33,7 @@ import org.grakovne.lissen.playback.service.LissenMediaSourceFactory
 import org.grakovne.lissen.playback.service.playbackExtractorsFactory
 import timber.log.Timber
 import java.io.File
+import javax.inject.Named
 import javax.inject.Singleton
 
 @UnstableApi
@@ -57,17 +59,60 @@ object MediaModule {
     )
   }
 
+  /**
+   * The auto-cache's own byte ranges. It never evicts by itself: the auto-cache planner decides what
+   * goes, because prefetched audio ahead of the playhead has not been read and would look the least
+   * recently used.
+   */
+  @OptIn(UnstableApi::class)
+  @Provides
+  @Singleton
+  @Named(AUTO_CACHE)
+  fun provideAutoCache(
+    @ApplicationContext context: Context,
+  ): Cache {
+    val baseFolder =
+      context
+        .externalCacheDir
+        ?.takeIf { it.exists() && it.canWrite() }
+        ?: context.cacheDir
+
+    return SimpleCache(
+      File(baseFolder, "auto_cache"),
+      NoOpCacheEvictor(),
+      StandaloneDatabaseProvider(context),
+    )
+  }
+
+  @OptIn(UnstableApi::class)
+  @Provides
+  @Singleton
+  fun provideDataSourceFactory(
+    @ApplicationContext context: Context,
+    sessionPreferences: SessionPreferences,
+    connectionPreferences: ConnectionPreferences,
+    mediaCache: Cache,
+    @Named(AUTO_CACHE) autoCache: Cache,
+    requestHeadersProvider: RequestHeadersProvider,
+    mediaProvider: LissenMediaProvider,
+  ): LissenDataSourceFactory =
+    LissenDataSourceFactory(
+      baseContext = context,
+      mediaCache = mediaCache,
+      autoCache = autoCache,
+      requestHeadersProvider = requestHeadersProvider,
+      session = sessionPreferences,
+      connection = connectionPreferences,
+      mediaProvider = mediaProvider,
+    )
+
   @OptIn(UnstableApi::class)
   @Provides
   @Singleton
   fun provideExoPlayer(
     @ApplicationContext context: Context,
     playbackPreferences: PlaybackPreferences,
-    sessionPreferences: SessionPreferences,
-    connectionPreferences: ConnectionPreferences,
-    mediaCache: Cache,
-    requestHeadersProvider: RequestHeadersProvider,
-    mediaProvider: LissenMediaProvider,
+    dataSourceFactory: LissenDataSourceFactory,
   ): ExoPlayer {
     val renderersFactory =
       when (playbackPreferences.getSoftwareCodecsEnabled()) {
@@ -95,14 +140,7 @@ object MediaModule {
           LissenMediaSourceFactory(
             mediaSourceFactory =
               DefaultMediaSourceFactory(
-                LissenDataSourceFactory(
-                  baseContext = context,
-                  mediaCache = mediaCache,
-                  requestHeadersProvider = requestHeadersProvider,
-                  session = sessionPreferences,
-                  connection = connectionPreferences,
-                  mediaProvider = mediaProvider,
-                ),
+                dataSourceFactory,
                 playbackExtractorsFactory(),
               ),
           ),
@@ -126,6 +164,7 @@ object MediaModule {
     return minOf(MAX_CACHE_BYTES, dynamicCap)
   }
 
+  const val AUTO_CACHE = "autoCache"
   private const val MAX_CACHE_BYTES = 128L * 1024 * 1024
   private const val KEEP_FREE_BYTES = 20L * 1024 * 1024
   private const val MIN_CACHE_BYTES = 10L * 1024 * 1024

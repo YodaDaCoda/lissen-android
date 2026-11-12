@@ -56,6 +56,7 @@ object LocalCacheModule {
       .addMigrations(MIGRATION_23_24)
       .addMigrations(MIGRATION_24_25)
       .addMigrations(MIGRATION_25_26)
+      .addCallback(ForkSchema.callback)
       .build()
   }
 

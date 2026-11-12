@@ -23,6 +23,8 @@ import java.io.IOException
 class LissenDataSourceFactory(
   private val baseContext: Context,
   private val mediaCache: Cache,
+  /** Auto-cached byte ranges; playback reads them ahead of the network, never writes them. */
+  private val autoCache: Cache,
   private val requestHeadersProvider: RequestHeadersProvider,
   private val session: SessionPreferences,
   private val connection: ConnectionPreferences,
@@ -60,12 +62,37 @@ class LissenDataSourceFactory(
       )
   }
 
+  private val autoCacheReadFactory by lazy {
+    CacheDataSource
+      .Factory()
+      .setCache(autoCache)
+      .setCacheWriteDataSinkFactory(null)
+      .setUpstreamDataSourceFactory(defaultFactory)
+  }
+
   override fun createDataSource(): DataSource =
     LocalFallbackDataSource(
-      upstream = defaultFactory.createDataSource(),
+      upstream = autoCacheReadFactory.createDataSource(),
       local = FileDataSource(),
       mediaProvider = mediaProvider,
     )
+
+  /**
+   * Writes into the auto-cache. The caller supplies the key in its `DataSpec`, and the `lissen://`
+   * URI is resolved to the server, or to a downloaded file, by [LocalFallbackDataSource] underneath.
+   */
+  fun createPrefetchDataSource(): CacheDataSource =
+    CacheDataSource
+      .Factory()
+      .setCache(autoCache)
+      .setUpstreamDataSourceFactory {
+        LocalFallbackDataSource(
+          upstream = DefaultDataSource.Factory(baseContext, upstreamFactory).createDataSource(),
+          local = FileDataSource(),
+          mediaProvider = mediaProvider,
+        )
+      }.setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+      .createDataSource()
 }
 
 @OptIn(UnstableApi::class)
@@ -99,6 +126,8 @@ internal class LocalFallbackDataSource(
       dataSpec
         .buildUpon()
         .setUri(resolvedUri)
+        // the resolved URL depends on the host, so key the cached bytes by item and file instead
+        .setKey(dataSpec.key ?: toCacheKey(itemId, fileId))
         .build()
 
     usingLocal = resolvedUri.scheme == "file"
