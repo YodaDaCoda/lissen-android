@@ -97,8 +97,13 @@ adb shell am start -n org.grakovne.lissen.dev/org.grakovne.lissen.ui.activity.Ap
 - `-PsingleAbi=true` keeps arm64-v8a by default; the x86_64 image also runs arm64 (translated), or
   pass `-PtargetAbi=x86_64` for a native build.
 - The guest restarts if the host is starved (other Gradle/Kotlin daemons); check `uptime`/`free`.
-- No Audiobookshelf server is needed to see the wizard, login, and Preferences (reachable from
-  the login screen's gear): enough to check the settings slices. Playback needs a server.
+- No server is needed to see the wizard, login, and Preferences (reachable from the login
+  screen's gear). For playback, Auto-cache and the player, run the mock server
+  (`tools/mock-abs/server.py`, a hand-written stand-in for Audiobookshelf, not the real thing),
+  then log in on the emulator with server `http://10.0.2.2:13378`, user `demo`, any password.
+  It serves "The Test Book" (3 tracks, 5 chapters, about 12 min, 40% played) and "A Short Story"
+  (one 90 s track) as generated WAV tones with range requests. It implements only what Lissen
+  calls, so a pass proves nothing about real Audiobookshelf quirks, formats or file sizes.
 - `adb exec-out screencap -p > shot.png` for screenshots; `uiautomator dump` for UI text.
 
 ## When to build (hard rule)
